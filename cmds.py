@@ -1,6 +1,6 @@
 import json, csv, sqlite3, colorama
 from yt_dlp import YoutubeDL
-from helpers.py import *
+from helpers import *
 
 # Open the database
 db = sqlite3.connect("youtube.db")
