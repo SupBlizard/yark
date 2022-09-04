@@ -1,5 +1,6 @@
 import json, csv, sqlite3, colorama
 from yt_dlp import YoutubeDL
+from helpers.py import *
 
 # Open the database
 db = sqlite3.connect("youtube.db")
@@ -10,7 +11,7 @@ def run(cmd_class, args):
     if not args:
         return cmd_class.default()
 
-    cmd = args.pop(0)
+    cmd = args.pop(0).lower()
     invalid_attr = f'Invalid attribute "{cmd}"'
     cmd = getattr(cmd_class, cmd, Exception(invalid_attr))
 

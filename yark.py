@@ -6,7 +6,7 @@ def main():
     while True:
         try:
             # Get user input
-            args = input("> ").lower().split()
+            args = input("> ").split()
             if len(args) == 0:
                 continue
             else: cmd = args.pop(0).capitalize()
@@ -28,7 +28,7 @@ def main():
             print()
 
         except Exception as e:
-            print(f"{colorama.Fore.RED}Error: {colorama.Style.RESET_ALL}{e}\n")
+            print(f"{colorama.Fore.RED}{e}{colorama.Style.RESET_ALL}\n")
         except KeyboardInterrupt:
             print()
             break
