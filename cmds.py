@@ -34,3 +34,20 @@ class Archive:
 
     def default(self):
         raise Exception(f"Missing method")
+
+
+class Media:
+    def __init__(self):
+        self.help = "TODO"
+
+    def default(self):
+        raise Exception(f"Missing method")
+
+    def get_info(self, url):
+        if not url or not url[0]:
+            raise ValueError("Missing url")
+        else: url = url[0]
+
+        with YoutubeDL({"quiet": True}) as ydlp:
+            info = ydlp.extract_info(url, download=False)
+            return info
