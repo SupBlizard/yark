@@ -51,3 +51,15 @@ class Media:
         with YoutubeDL({"quiet": True}) as ydlp:
             info = ydlp.extract_info(url, download=False)
             return info
+
+
+    def print_info(self, url):
+        try:
+            info = self.get_info(url)
+        except ValueError as e: raise e
+
+        print("\nThumbnail: " + info["thumbnail"])
+        print(info["title"])
+        info["upload_date"] = date_convert(info["upload_date"] )
+        print(f"{info['view_count']} views | {info['upload_date']}\n")
+        print(f"{info['channel']} | {info['channel_follower_count']} subscribers")
