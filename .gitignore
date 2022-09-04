@@ -1,0 +1,5 @@
+dataset
+.venv
+*.exe
+*.bat
+*.db
