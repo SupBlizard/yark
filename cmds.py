@@ -50,6 +50,8 @@ class Media:
 
         with YoutubeDL({"quiet": True}) as ydlp:
             info = ydlp.extract_info(url, download=False)
+            if info["extractor"] != "youtube":
+                raise ValueError("ERROR: Must be a youtube domain")
             return info
 
 
