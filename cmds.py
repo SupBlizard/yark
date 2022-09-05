@@ -1,9 +1,19 @@
 import json, csv, sqlite3, colorama
+
+import datetime
+from dateutil.parser import *
+
 from yt_dlp import YoutubeDL
 from helpers import *
 
 # Open the database
-db = sqlite3.connect("youtube.db")
+
+try:
+    db = sqlite3.connect("youtube.db")
+    with open("schema.sql", "r") as schema:
+        db.executescript(schema.read())
+except FileNotFoundError as e:
+    print("Database schema not found.")
 
 
 # Global run command
@@ -24,7 +34,6 @@ def run(cmd_class, args):
         raise cmd
     else:
         return cmd
-
 
 
 # https://www.youtube.com/watch?v=qOgldkETcxk
@@ -48,7 +57,7 @@ class Media:
             raise ValueError("Missing url")
         else: url = url[0]
 
-        with YoutubeDL({"quiet": True}) as ydlp:
+        with YoutubeDL({"quiet": True, "getcomments": True}) as ydlp:
             info = ydlp.extract_info(url, download=False)
             if info["extractor"] != "youtube":
                 raise ValueError("ERROR: Must be a youtube domain")
