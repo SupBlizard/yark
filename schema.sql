@@ -2,8 +2,7 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
     user_id TEXT PRIMARY KEY NOT NULL UNIQUE,
-    username TEXT NOT NULL,
-    avatar BLOB NOT NULL
+    username TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS channels (
