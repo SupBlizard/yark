@@ -1,4 +1,4 @@
-import json, csv, sqlite3, colorama, requests, time
+import os, json, csv, sqlite3, colorama, requests, time
 
 import datetime
 from dateutil.parser import *
@@ -87,8 +87,8 @@ class Archive:
 
         # Add video
         cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-            v["id"], v["fulltitle"], v["description"], v["channel_id"], v["duration"], thumbnail.content,
-            v["duration_string"], v["view_count"], v["age_limit"], v["webpage_url"],
+            v["id"], v["fulltitle"], v["description"], v["channel_id"], thumbnail.content,
+            v["duration"], v["duration_string"], v["view_count"], v["age_limit"], v["webpage_url"],
             v["live_status"], ryd["likes"], ryd["dislikes"], ryd["rating"], v["upload_date"],
             v["availability"], v["width"], v["height"], v["fps"], v["audio_channels"]
         ))
