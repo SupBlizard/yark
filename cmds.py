@@ -108,8 +108,23 @@ class Archive:
         # Commit new video
         db.commit()
 
+
     def dump(self, args):
-        pass
+        if len(args) < 1 or not args[0]:
+            raise TypeError("Dump what ?")
+
+        if args[0].lower() == "thumbnails":
+            if not os.path.exists("thumbnails"):
+                os.mkdir("thumbnails")
+
+            videos = db.execute("SELECT video_id, thumbnail FROM videos").fetchall()
+
+            for video in videos:
+                thumbnail_path = f"thumbnails/{video[0]}.webp"
+                if os.path.exists(thumbnail_path): continue
+
+                with open(thumbnail_path, "wb") as thumb_file:
+                    thumb_file.write(video[1])
 
     def playlist(self, args):
         pass
