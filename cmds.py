@@ -1,4 +1,4 @@
-import json, csv, sqlite3, colorama, requests
+import json, csv, sqlite3, colorama, requests, time
 
 import datetime
 from dateutil.parser import *
@@ -64,18 +64,30 @@ class Archive:
         # Commit new rows
         db.commit()
 
-        
-        # Download thumbnail
-        thumbnail = requests.get(v["thumbnail"]).content
+        timeout = 1
+        while timeout != 0:
+            timeout -= 1
 
-        # Get dislike count and rating
-        ryd = json.loads(
-            requests.get(f"{RYD_API}Votes?videoId={v['id']}&likeCount={v['like_count']}").content
-        )
+            try:
+                # Download thumbnail
+                thumbnail = requests.get(v["thumbnail"])
+                thumbnail.raise_for_status()
+
+                # Get dislike count and rating
+                ryd = requests.get(f"{RYD_API}Votes?videoId={v['id']}&likeCount={v['like_count']}")
+                ryd.raise_for_status()
+                ryd = ryd.json()
+                timeout = 0
+            except (requests.ConnectionError, requests.Timeout) as e:
+                timeout = 5
+                time.sleep(3)
+            except:
+                raise e
+
 
         # Add video
         cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-            v["id"], v["fulltitle"], v["description"], v["channel_id"], v["duration"], thumbnail,
+            v["id"], v["fulltitle"], v["description"], v["channel_id"], v["duration"], thumbnail.content,
             v["duration_string"], v["view_count"], v["age_limit"], v["webpage_url"],
             v["live_status"], ryd["likes"], ryd["dislikes"], ryd["rating"], v["upload_date"],
             v["availability"], v["width"], v["height"], v["fps"], v["audio_channels"]
