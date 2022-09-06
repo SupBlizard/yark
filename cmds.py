@@ -1,4 +1,4 @@
-import json, csv, sqlite3, colorama
+import json, csv, sqlite3, colorama, requests
 
 import datetime
 from dateutil.parser import *
@@ -6,8 +6,11 @@ from dateutil.parser import *
 from yt_dlp import YoutubeDL
 from helpers import *
 
-# Open the database
 
+RYD_API = "https://returnyoutubedislikeapi.com/"
+
+
+# Open the database
 try:
     db = sqlite3.connect("youtube.db")
     with open("schema.sql", "r") as schema:
@@ -43,6 +46,56 @@ class Archive:
 
     def default(self):
         raise Exception(f"Missing method")
+
+    def video(self, url):
+        v = Media.get_info(self, url)
+        cur = db.cursor()
+
+        # Check if uploader exists in the database
+        if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (v["uploader_id"],)).fetchone():
+            cur.execute("INSERT INTO users VALUES(?,?)", (v["uploader_id"], v["uploader"]))
+        # Check if channel exists in the database
+        if not cur.execute("SELECT 1 FROM channels WHERE channel_id == ?", (v["channel_id"],)).fetchone():
+            cur.execute("INSERT INTO channels VALUES(?,?,?,?,?)", (
+                v["channel_id"], v["uploader_id"], v["channel"],
+                v["channel_follower_count"], v["channel_url"]
+            ))
+
+        # Commit new rows
+        db.commit()
+
+        
+        # Download thumbnail
+        thumbnail = requests.get(v["thumbnail"]).content
+
+        # Get dislike count and rating
+        ryd = json.loads(
+            requests.get(f"{RYD_API}Votes?videoId={v['id']}&likeCount={v['like_count']}").content
+        )
+
+        # Add video
+        cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            v["id"], v["fulltitle"], v["description"], v["channel_id"], v["duration"], thumbnail,
+            v["duration_string"], v["view_count"], v["age_limit"], v["webpage_url"],
+            v["live_status"], ryd["likes"], ryd["dislikes"], ryd["rating"], v["upload_date"],
+            v["availability"], v["width"], v["height"], v["fps"], v["audio_channels"]
+        ))
+
+        # Add comments
+        for c in v["comments"]:
+            # Check if user is in the database
+            if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (c["author_id"],)).fetchone():
+                cur.execute("INSERT INTO users VALUES(?,?)", (c["author_id"], c["author"]))
+
+            if c["parent"] == "root": c["parent"] = None
+            cur.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?)", (
+                c["id"], v["id"], c["author_id"], c["text"], c["like_count"],
+                c["is_favorited"], c["author_is_uploader"], c["parent"], c["timestamp"]
+            ))
+
+        # Commit new video
+        db.commit()
+
 
 
 class Media:
