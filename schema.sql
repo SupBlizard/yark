@@ -39,15 +39,18 @@ CREATE TABLE IF NOT EXISTS tags_relations (
 );
 
 CREATE TABLE IF NOT EXISTS comments (
-    comment_id TEXT PRIMARY KEY NOT NULL UNIQUE,
-    author_id TEXT NOT NULL,
+    comment_id TEXT PRIMARY KEY NOT NULL,
+    video TEXT NOT NULL,
+    author TEXT NOT NULL,
     content TEXT NOT NULL,
-    like_count INTEGER NOT NULL,
+    likes INTEGER NOT NULL,
     is_favorited INTEGER NOT NULL,
     author_is_uploader INTEGER NOT NULL,
-    parent TEXT NOT NULL,
+    parent TEXT,
     timestamp INTEGER NOT NULL,
-    FOREIGN KEY(author_id) REFERENCES users(user_id)
+    FOREIGN KEY(video) REFERENCES videos(video_id),
+    FOREIGN KEY(author) REFERENCES users(user_id),
+    FOREIGN KEY(parent) REFERENCES comments(comment_id)
 );
 
 CREATE TABLE IF NOT EXISTS videos (
