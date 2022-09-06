@@ -84,6 +84,17 @@ CREATE TABLE IF NOT EXISTS history (
     FOREIGN KEY(history_id) REFERENCES videos(video_id)
 );
 
+CREATE TABLE IF NOT EXISTS playlist (
+    playlist_id TEXT PRIMARY KEY NOT NULL,
+    channel TEXT NOT NULL,
+    created INTEGER NOT NULL,
+    updated INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    visibility TEXT NOT NULL,
+    FOREIGN KEY(channel) REFERENCES channels(channel_id)
+);
+
 
 
 -- Insert youtube's categories
