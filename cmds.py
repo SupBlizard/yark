@@ -108,6 +108,15 @@ class Archive:
         # Commit new video
         db.commit()
 
+    def dump(self, args):
+        pass
+
+    def playlist(self, args):
+        pass
+
+    def history(self, args):
+        pass
+
 
 
 class Media:
