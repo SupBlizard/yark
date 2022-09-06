@@ -7,6 +7,8 @@ from yt_dlp import YoutubeDL
 from helpers import *
 
 
+VIDEO_ID_LENGTH = 11
+PLAYLIST_ID_LENGTH = 34
 RYD_API = "https://returnyoutubedislikeapi.com/"
 
 
@@ -47,8 +49,8 @@ class Archive:
     def default(self):
         raise Exception(f"Missing method")
 
-    def video(self, url):
-        v = Media.get_info(self, url)
+    def video(self, video_id):
+        v = Media.get_info(self, video_id)
         cur = db.cursor()
 
         # Check if uploader exists in the database
@@ -141,21 +143,22 @@ class Media:
     def default(self):
         raise Exception(f"Missing method")
 
-    def get_info(self, url):
-        if not url or not url[0]:
+    def get_info(self, video_id):
+        if not video_id or not video_id[0]:
             raise ValueError("Missing url")
-        else: url = url[0]
+        elif len(video_id[0]) != VIDEO_ID_LENGTH:
+            raise ValueError("Invalid video ID")
+        else: video_id = video_id[0]
 
         with YoutubeDL({"quiet": True, "getcomments": True}) as ydlp:
-            info = ydlp.extract_info(url, download=False)
+            info = ydlp.extract_info(video_id, download=False)
             if info["extractor"] != "youtube":
                 raise ValueError("ERROR: Must be a youtube domain")
             return info
 
-
-    def print_info(self, url):
+    def print_info(self, video_id):
         try:
-            info = self.get_info(url)
+            info = self.get_info(video_id)
         except ValueError as e: raise e
 
         print("\nThumbnail: " + info["thumbnail"])
