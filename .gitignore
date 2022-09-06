@@ -1,5 +1,6 @@
 __pycache__
 dataset
+thumbnails
 .venv
 *.exe
 *.bat
