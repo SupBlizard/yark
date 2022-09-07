@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS videos (
     description TEXT NOT NULL,
     channel TEXT NOT NULL,
     thumbnail BLOB,
+    thumbnail_url TEXT NOT NULL,
     duration INTEGER NOT NULL,
     duration_string TEXT NOT NULL,
     views INTEGER NOT NULL,
@@ -93,6 +94,15 @@ CREATE TABLE IF NOT EXISTS playlist (
     description TEXT,
     visibility TEXT NOT NULL,
     FOREIGN KEY(channel) REFERENCES channels(channel_id)
+);
+
+CREATE TABLE IF NOT EXISTS playlist_videos (
+    pr_id INTEGER PRIMARY KEY NOT NULL,
+    playlist TEXT NOT NULL,
+    video TEXT NOT NULL,
+    added INTEGER NOT NULL,
+    FOREIGN KEY(playlist) REFERENCES playlists(playlist_id),
+    FOREIGN KEY(video) REFERENCES videos(video_id)
 );
 
 
