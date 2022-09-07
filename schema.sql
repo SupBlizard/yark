@@ -19,19 +19,13 @@ CREATE TABLE IF NOT EXISTS categories (
     name TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS categories_relations (
-    video INTEGER PRIMARY KEY NOT NULL,
-    category TEXT NOT NULL,
-    FOREIGN KEY(video) REFERENCES video(video_id),
-    FOREIGN KEY(category) REFERENCES categories(category_id)
-);
-
 CREATE TABLE IF NOT EXISTS tags (
     tag_id INTEGER PRIMARY KEY NOT NULL,
     name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tags_relations (
+    tr_id INTEGER PRIMARY KEY NOT NULL,
     video TEXT NOT NULL,
     tag INTEGER PRIMARY KEY NOT NULL,
     FOREIGN KEY(video) REFERENCES video(video_id),
@@ -69,12 +63,13 @@ CREATE TABLE IF NOT EXISTS videos (
     likes INTEGER,
     dislikes INTEGER,
     rating REAL NOT NULL,
-    upload_date INTEGER NOT NULL,
+    upload_timestamp INTEGER NOT NULL,
     availability TEXT NOT NULL,
     width INTEGER NOT NULL,
     height INTEGER NOT NULL,
     fps REAL NOT NULL,
     audio_channels INTEGER NOT NULL,
+    category INTEGER NOT NULL,
     FOREIGN KEY(channel) REFERENCES channels(channel_id)
 );
 
