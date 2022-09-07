@@ -53,6 +53,8 @@ class Archive:
         v = Media.get_info(self, video_id)
         cur = db.cursor()
 
+        # TODO: check video is accessable
+
         # Check if uploader exists in the database
         if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (v["uploader_id"],)).fetchone():
             cur.execute("INSERT INTO users VALUES(?,?)", (v["uploader_id"], v["uploader"]))
@@ -62,6 +64,8 @@ class Archive:
                 v["channel_id"], v["uploader_id"], v["channel"],
                 v["channel_follower_count"], v["channel_url"]
             ))
+
+        # TODO: tags and categories
 
         # Commit new rows
         db.commit()
@@ -128,8 +132,36 @@ class Archive:
                 with open(thumbnail_path, "wb") as thumb_file:
                     thumb_file.write(video[1])
 
-    def playlist(self, args):
-        pass
+
+    def playlist(self, path):
+        if not path or not path[0]:
+            raise ValueError("Missing path")
+        else: path = " ".join(path)
+
+        try:
+            with open(path, "rt", newline="") as pl_file:
+                playlist_info = list(csv.DictReader(pl_file, delimiter=','))[0]
+
+                # Reset file stream position
+                pl_file.seek(0)
+
+                # Skip top table
+                for i in range(3):
+                    next(pl_file)
+                videos = list(csv.DictReader(pl_file, delimiter=','))
+
+            print(playlist_info)
+            for video in videos:
+                print(video)
+
+        except FileNotFoundError:
+            raise FileNotFoundError("Playlist file not found")
+        except csv.Error as e:
+            print("ERROR: The CSV reader appears illiterate.", e)
+        except Exception as e:
+            print(e)
+
+
 
     def history(self, args):
         pass
