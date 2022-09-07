@@ -1,0 +1,9 @@
+custom configurations
+  enable / disable comment archival
+  
+  
+documentation
+store aproximate filesize
+store tags
+fix categories
+check if video is accessible
