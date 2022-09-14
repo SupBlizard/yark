@@ -18,12 +18,13 @@ def main():
         try:
             # Check if command exists
             try:
-                if type(getattr(cmds, cmd)) != type: raise TypeError
+                cmd = getattr(cmds, cmd)
+                if type(cmd) != type: raise TypeError
             except (AttributeError, TypeError):
                 raise Exception(f"Command {cmd} does not exist.")
 
             # Run command and print return value
-            if rtn := cmds.run(getattr(cmds, cmd)(), args):
+            if rtn := cmds.run(cmd(), args):
                 print(rtn)
             print()
 
@@ -37,6 +38,5 @@ def main():
     cmds.db.close()
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
