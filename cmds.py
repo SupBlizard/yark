@@ -11,6 +11,11 @@ VIDEO_ID_LENGTH = 11
 PLAYLIST_ID_LENGTH = 34
 RYD_API = "https://returnyoutubedislikeapi.com/"
 
+config = {
+    "thumbnails":False,
+    "comments":False
+}
+
 
 # Open the database
 try:
@@ -104,14 +109,20 @@ class Archive:
             if not os.path.exists("thumbnails"):
                 os.mkdir("thumbnails")
 
-            videos = db.execute("SELECT video_id, thumbnail FROM videos").fetchall()
-
-            for video in videos:
+            dumped = 0
+            for video in db.execute("SELECT video_id, thumbnail FROM videos").fetchall():
+                if not video[1]: continue
                 thumbnail_path = f"thumbnails/{video[0]}.webp"
                 if os.path.exists(thumbnail_path): continue
 
                 with open(thumbnail_path, "wb") as thumb_file:
                     thumb_file.write(video[1])
+                    dumped += 1
+
+            if dumped != 0:
+                print("Thumbnails successfully dumped!")
+            else:
+                print("There are no thumbnails in the database.")
 
 
     def playlist(self, path):
@@ -176,7 +187,7 @@ class Media:
 
         print(f"[{video_id}] Extracting Information")
 
-        with YoutubeDL({"quiet": True, "getcomments": True}) as ydlp:
+        with YoutubeDL({"quiet": True, "getcomments": config["comments"]}) as ydlp:
             info = ydlp.extract_info(video_id, download=False)
             if info["extractor"] != "youtube":
                 raise ValueError("ERROR: Must be a youtube domain")
@@ -188,9 +199,11 @@ class Media:
             try:
                 # Download thumbnail
                 info["thumbnail_url"] = info["thumbnail"]
-                thumbnail = requests.get(info["thumbnail"])
-                info["thumbnail"] = thumbnail.content
-                thumbnail.raise_for_status()
+                if config["thumbnails"]:
+                    thumbnail = requests.get(info["thumbnail"])
+                    info["thumbnail"] = thumbnail.content
+                    thumbnail.raise_for_status()
+                else: info["thumbnail"] = None
 
                 # Get dislike count and rating
                 ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}&likeCount={info['like_count']}")
