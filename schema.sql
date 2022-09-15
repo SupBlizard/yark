@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS tags_relations (
     tr_id INTEGER PRIMARY KEY NOT NULL,
     video TEXT NOT NULL,
-    tag INTEGER PRIMARY KEY NOT NULL,
+    tag INTEGER NOT NULL,
     FOREIGN KEY(video) REFERENCES video(video_id),
     FOREIGN KEY(tag) REFERENCES tag(tag_id)
 );
@@ -80,15 +80,14 @@ CREATE TABLE IF NOT EXISTS history (
     FOREIGN KEY(history_id) REFERENCES videos(video_id)
 );
 
-CREATE TABLE IF NOT EXISTS playlist (
+CREATE TABLE IF NOT EXISTS playlists (
     playlist_id TEXT PRIMARY KEY NOT NULL,
     channel TEXT NOT NULL,
     created INTEGER NOT NULL,
     updated INTEGER NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
-    visibility TEXT NOT NULL,
-    FOREIGN KEY(channel) REFERENCES channels(channel_id)
+    visibility TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS playlist_videos (
