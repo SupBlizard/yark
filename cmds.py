@@ -50,7 +50,7 @@ class Archive:
         raise Exception(f"Missing method")
 
     def video(self, video_id):
-        v = Media.get_info(self, video_id)
+        v = Media.get_info(self, video_id, simulate=False)
         cur = db.cursor()
 
         # TODO: check video is accessable
@@ -70,46 +70,27 @@ class Archive:
         # Commit new rows
         db.commit()
 
-        timeout = 1
-        while timeout != 0:
-            timeout -= 1
-
-            try:
-                # Download thumbnail
-                thumbnail = requests.get(v["thumbnail"])
-                thumbnail.raise_for_status()
-
-                # Get dislike count and rating
-                ryd = requests.get(f"{RYD_API}Votes?videoId={v['id']}&likeCount={v['like_count']}")
-                ryd.raise_for_status()
-                ryd = ryd.json()
-                timeout = 0
-            except (requests.ConnectionError, requests.Timeout) as e:
-                timeout = 5
-                time.sleep(3)
-            except:
-                raise e
-
-
         # Add video
-        cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-            v["id"], v["fulltitle"], v["description"], v["channel_id"], thumbnail.content,
-            v["duration"], v["duration_string"], v["view_count"], v["age_limit"], v["webpage_url"],
-            v["live_status"], ryd["likes"], ryd["dislikes"], ryd["rating"], v["upload_date"],
-            v["availability"], v["width"], v["height"], v["fps"], v["audio_channels"]
+        cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            v["id"], v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"],
+            v["thumbnail_url"], v["duration"], v["duration_string"], v["view_count"],
+            v["age_limit"], v["webpage_url"], v["live_status"], v["likes"], v["dislikes"],
+            v["rating"], parse(v["upload_date"]).timestamp(), v["availability"], v["width"],
+            v["height"], v["fps"], v["audio_channels"], v["categories"][0]
         ))
 
         # Add comments
-        for c in v["comments"]:
-            # Check if user is in the database
-            if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (c["author_id"],)).fetchone():
-                cur.execute("INSERT INTO users VALUES(?,?)", (c["author_id"], c["author"]))
+        if v.get("comments"):
+            for c in v["comments"]:
+                # Check if user is in the database
+                if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (c["author_id"],)).fetchone():
+                    cur.execute("INSERT INTO users VALUES(?,?)", (c["author_id"], c["author"]))
 
-            if c["parent"] == "root": c["parent"] = None
-            cur.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?)", (
-                c["id"], v["id"], c["author_id"], c["text"], c["like_count"],
-                c["is_favorited"], c["author_is_uploader"], c["parent"], c["timestamp"]
-            ))
+                if c["parent"] == "root": c["parent"] = None
+                cur.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?)", (
+                    c["id"], v["id"], c["author_id"], c["text"], c["like_count"],
+                    c["is_favorited"], c["author_is_uploader"], c["parent"], c["timestamp"]
+                ))
 
         # Commit new video
         db.commit()
@@ -140,26 +121,37 @@ class Archive:
 
         try:
             with open(path, "rt", newline="") as pl_file:
-                playlist_info = list(csv.DictReader(pl_file, delimiter=','))[0]
-
+                playlist = list(csv.DictReader(pl_file, delimiter=','))[0]
                 # Reset file stream position
                 pl_file.seek(0)
 
-                # Skip top table
-                for i in range(3):
-                    next(pl_file)
-                videos = list(csv.DictReader(pl_file, delimiter=','))
-
-            print(playlist_info)
-            for video in videos:
-                print(video)
-
+                playlist["Videos"] = list(csv.reader(pl_file, delimiter=','))[4:-1]
         except FileNotFoundError:
             raise FileNotFoundError("Playlist file not found")
         except csv.Error as e:
             print("ERROR: The CSV reader appears illiterate.", e)
         except Exception as e:
             print(e)
+
+        # Store playlist
+        db.execute("INSERT OR IGNORE INTO playlists VALUES(?,?,?,?,?,?,?)", (playlist["Playlist ID"],
+            playlist["Channel ID"], parse(playlist["Time Created"]).timestamp(),
+            parse(playlist["Time Updated"]).timestamp(), playlist["Title"],
+            playlist["Description"], playlist["Visibility"])
+        )
+
+        # Save videos
+        for video in playlist["Videos"]:
+            # remove spaces
+            video = [video[0].replace(" ", ""), parse(video[1]).timestamp()]
+            try:
+                self.video([video[0]])
+                db.execute("""INSERT INTO playlist_videos(playlist, video, added)
+                VALUES(?,?,?)""", (playlist["Playlist ID"], video[0], video[1]))
+            except sqlite3.IntegrityError:
+                continue
+
+        print("Finished Archiving playlist !")
 
 
 
@@ -175,26 +167,56 @@ class Media:
     def default(self):
         raise Exception(f"Missing method")
 
-    def get_info(self, video_id):
+    def get_info(self, video_id, simulate=True):
         if not video_id or not video_id[0]:
             raise ValueError("Missing url")
         elif len(video_id[0]) != VIDEO_ID_LENGTH:
             raise ValueError("Invalid video ID")
         else: video_id = video_id[0]
 
+        print(f"[{video_id}] Extracting Information")
+
         with YoutubeDL({"quiet": True, "getcomments": True}) as ydlp:
             info = ydlp.extract_info(video_id, download=False)
             if info["extractor"] != "youtube":
                 raise ValueError("ERROR: Must be a youtube domain")
+
+        timeout = 1
+        while timeout != 0:
+            timeout -= 1
+
+            try:
+                # Download thumbnail
+                info["thumbnail_url"] = info["thumbnail"]
+                thumbnail = requests.get(info["thumbnail"])
+                info["thumbnail"] = thumbnail.content
+                thumbnail.raise_for_status()
+
+                # Get dislike count and rating
+                ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}&likeCount={info['like_count']}")
+                ryd.raise_for_status()
+                ryd = ryd.json()
+                info.pop("like_count")
+                info["likes"] = ryd["likes"]
+                info["dislikes"] = ryd["dislikes"]
+                info["rating"] = ryd["rating"]
+                timeout = 0
+            except (requests.ConnectionError, requests.Timeout) as e:
+                timeout = 5
+                time.sleep(3)
+            except Exception as e: raise e
+
+        if not simulate:
             return info
+
 
     def print_info(self, video_id):
         try:
-            info = self.get_info(video_id)
+            info = self.get_info(video_id, False)
         except ValueError as e: raise e
-
-        print("\nThumbnail: " + info["thumbnail"])
+        print(list(info))
+        print("\nThumbnail: " + info["thumbnail_url"])
         print(info["title"])
         info["upload_date"] = date_convert(info["upload_date"] )
-        print(f"{info['view_count']} views | {info['upload_date']}\n")
+        print(f"{info['view_count']} views | {info['upload_date']} | {info['likes']} likes  {info['dislikes']} dislikes\n")
         print(f"{info['channel']} | {info['channel_follower_count']} subscribers")
