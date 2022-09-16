@@ -3,7 +3,7 @@ import os, json, csv, sqlite3, colorama, requests, time
 import datetime
 from dateutil.parser import *
 
-from yt_dlp import YoutubeDL
+import yt_dlp
 from helpers import *
 
 
@@ -60,15 +60,11 @@ class Archive:
 
         # TODO: check video is accessable
 
-        # Check if uploader exists in the database
-        if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (v["uploader_id"],)).fetchone():
-            cur.execute("INSERT INTO users VALUES(?,?)", (v["uploader_id"], v["uploader"]))
-        # Check if channel exists in the database
-        if not cur.execute("SELECT 1 FROM channels WHERE channel_id == ?", (v["channel_id"],)).fetchone():
-            cur.execute("INSERT INTO channels VALUES(?,?,?,?,?)", (
-                v["channel_id"], v["uploader_id"], v["channel"],
-                v["channel_follower_count"], v["channel_url"]
-            ))
+        cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (v["uploader_id"], v["uploader"]))
+        cur.execute("INSERT OR IGNORE INTO channels VALUES(?,?,?,?,?)", (
+            v["channel_id"], v["uploader_id"], v["channel"],
+            v["channel_follower_count"], v["channel_url"]
+        ))
 
         # TODO: tags and categories
 
@@ -76,7 +72,7 @@ class Archive:
         db.commit()
 
         # Add video
-        cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+        cur.execute("INSERT OR IGNORE INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
             v["id"], v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"],
             v["thumbnail_url"], v["duration"], v["duration_string"], v["view_count"],
             v["age_limit"], v["webpage_url"], v["live_status"], v["likes"], v["dislikes"],
@@ -179,45 +175,56 @@ class Media:
         raise Exception(f"Missing method")
 
     def get_info(self, video_id, simulate=True):
-        if not video_id or not video_id[0]:
-            raise ValueError("Missing url")
-        elif len(video_id[0]) != VIDEO_ID_LENGTH:
-            raise ValueError("Invalid video ID")
-        else: video_id = video_id[0]
-
+        # if not video_id or not video_id[0]:
+        #     raise ValueError("Missing url")
+        # elif len(video_id[0]) != VIDEO_ID_LENGTH:
+        #     raise ValueError("Invalid video ID")
+        # else:
+        video_id = video_id[0]
         print(f"[{video_id}] Extracting Information")
+        with yt_dlp.YoutubeDL({"quiet": True, "getcomments": config["comments"]}) as ydlp:
+            try:
+                info = ydlp.extract_info(video_id, download=False)
+            except yt_dlp.utils.DownloadError as e:
+                # TODO: attempt to get video from the wayback machine
+                info["availability"] = "unavailable"
+            except yt_dlp.utils.ExtractorError as e:
+                raise yt_dlp.utils.ExtractorError(f"Extractor error: {e}")
 
-        with YoutubeDL({"quiet": True, "getcomments": config["comments"]}) as ydlp:
-            info = ydlp.extract_info(video_id, download=False)
-            if info["extractor"] != "youtube":
-                raise ValueError("ERROR: Must be a youtube domain")
+        print(list(info))
+        print()
+        print(info)
+        if info["extractor"] == "youtube" or info["extractor"] == "web.archive:youtube":
+            # Download thumbnail
+            info["thumbnail_url"] = info["thumbnail"]
+            if config["thumbnails"]:
+                thumbnail = requests.get(info["thumbnail"])
+                info["thumbnail"] = thumbnail.content
+                thumbnail.raise_for_status()
+            else: info["thumbnail"] = None
 
-        timeout = 1
-        while timeout != 0:
-            timeout -= 1
+            if info.get("like_count"):
+                info.pop("like_count")
+            else: info["likes"] = info.get("like_count")
 
             try:
-                # Download thumbnail
-                info["thumbnail_url"] = info["thumbnail"]
-                if config["thumbnails"]:
-                    thumbnail = requests.get(info["thumbnail"])
-                    info["thumbnail"] = thumbnail.content
-                    thumbnail.raise_for_status()
-                else: info["thumbnail"] = None
-
-                # Get dislike count and rating
-                ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}&likeCount={info['like_count']}")
+                ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}")
                 ryd.raise_for_status()
                 ryd = ryd.json()
-                info.pop("like_count")
-                info["likes"] = ryd["likes"]
-                info["dislikes"] = ryd["dislikes"]
-                info["rating"] = ryd["rating"]
-                timeout = 0
-            except (requests.ConnectionError, requests.Timeout) as e:
-                timeout = 5
-                time.sleep(3)
-            except Exception as e: raise e
+                info["likes"] = ryd.get("likes")
+            except requests.exceptions.HTTPError:
+                print(type(e))
+
+            if not info.get("age_limit"):
+                info["age_limit"] = 0
+            if not info.get("live_status"):
+                info["live_status"] = "not live"
+            if not info.get("live_status"):
+                info["live_status"] = "not live"
+
+            info["dislikes"] = ryd.get("dislikes")
+            info["rating"] = ryd.get("rating")
+        else: raise ValueError("ERROR: Not a youtube domain")
 
         if not simulate:
             return info
