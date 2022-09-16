@@ -10,6 +10,8 @@ from helpers import *
 VIDEO_ID_LENGTH = 11
 PLAYLIST_ID_LENGTH = 34
 RYD_API = "https://returnyoutubedislikeapi.com/"
+WAYBACK = "https://web.archive.org/web/"
+YOUTUBE = "https://www.youtube.com/"
 
 config = {
     "thumbnails":False,
@@ -108,7 +110,7 @@ class Archive:
             dumped = 0
             for video in db.execute("SELECT video_id, thumbnail, thumbnail_url FROM videos").fetchall():
                 if not video[1]: continue
-                thumbnail_path = f"thumbnails/{video[0]}.{video[2].split(".")[-1]}"
+                thumbnail_path = f"thumbnails/{video[0]}.{video[2].split('.')[-1]}"
                 if os.path.exists(thumbnail_path): continue
 
                 with open(thumbnail_path, "wb") as thumb_file:
@@ -186,14 +188,12 @@ class Media:
             try:
                 info = ydlp.extract_info(video_id, download=False)
             except yt_dlp.utils.DownloadError as e:
-                # TODO: attempt to get video from the wayback machine
+                # Attempt to get video from the wayback machine
+                info = ydlp.extract_info(f"{WAYBACK}{YOUTUBE}watch?v={video_id}", download=False)
                 info["availability"] = "unavailable"
             except yt_dlp.utils.ExtractorError as e:
                 raise yt_dlp.utils.ExtractorError(f"Extractor error: {e}")
 
-        print(list(info))
-        print()
-        print(info)
         if info["extractor"] == "youtube" or info["extractor"] == "web.archive:youtube":
             # Download thumbnail
             info["thumbnail_url"] = info["thumbnail"]
@@ -205,24 +205,14 @@ class Media:
 
             if info.get("like_count"):
                 info.pop("like_count")
-            else: info["likes"] = info.get("like_count")
+            if info.get("view_count"):
+                info.pop("view_count")
 
-            try:
-                ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}")
-                ryd.raise_for_status()
-                ryd = ryd.json()
-                info["likes"] = ryd.get("likes")
-            except requests.exceptions.HTTPError:
-                print(type(e))
-
-            if not info.get("age_limit"):
-                info["age_limit"] = 0
-            if not info.get("live_status"):
-                info["live_status"] = "not live"
-            if not info.get("live_status"):
-                info["live_status"] = "not live"
-
+            # Get video rating
+            ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}").json()
+            info["likes"] = ryd.get("likes")
             info["dislikes"] = ryd.get("dislikes")
+            info["views"] = ryd.get("viewCount")
             info["rating"] = ryd.get("rating")
         else: raise ValueError("ERROR: Not a youtube domain")
 
@@ -235,8 +225,10 @@ class Media:
             info = self.get_info(video_id, False)
         except ValueError as e: raise e
         print(list(info))
+        print()
+        print(info)
         print("\nThumbnail: " + info["thumbnail_url"])
         print(info["title"])
         info["upload_date"] = date_convert(info["upload_date"] )
-        print(f"{info['view_count']} views | {info['upload_date']} | {info['likes']} likes  {info['dislikes']} dislikes\n")
+        print(f"{info['views']} views | {info['upload_date']} | {info['likes']} likes  {info['dislikes']} dislikes\n")
         print(f"{info['channel']} | {info['channel_follower_count']} subscribers")
