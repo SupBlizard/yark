@@ -106,9 +106,9 @@ class Archive:
                 os.mkdir("thumbnails")
 
             dumped = 0
-            for video in db.execute("SELECT video_id, thumbnail FROM videos").fetchall():
+            for video in db.execute("SELECT video_id, thumbnail, thumbnail_url FROM videos").fetchall():
                 if not video[1]: continue
-                thumbnail_path = f"thumbnails/{video[0]}.webp"
+                thumbnail_path = f"thumbnails/{video[0]}.{video[2].split(".")[-1]}"
                 if os.path.exists(thumbnail_path): continue
 
                 with open(thumbnail_path, "wb") as thumb_file:
