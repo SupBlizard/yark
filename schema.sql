@@ -49,14 +49,14 @@ CREATE TABLE IF NOT EXISTS comments (
 
 CREATE TABLE IF NOT EXISTS videos (
     video_id TEXT PRIMARY KEY NOT NULL UNIQUE,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
+    title TEXT,
+    description TEXT,
     channel TEXT NOT NULL,
     thumbnail BLOB,
     thumbnail_url TEXT NOT NULL,
     duration INTEGER NOT NULL,
     duration_string TEXT NOT NULL,
-    views INTEGER NOT NULL,
+    views INTEGER,
     age_limit INTEGER NOT NULL,
     webpage_url TEXT NOT NULL,
     live_status TEXT NOT NULL,
@@ -67,9 +67,9 @@ CREATE TABLE IF NOT EXISTS videos (
     availability TEXT NOT NULL,
     width INTEGER NOT NULL,
     height INTEGER NOT NULL,
-    fps REAL NOT NULL,
-    audio_channels INTEGER NOT NULL,
-    category INTEGER NOT NULL,
+    fps REAL,
+    audio_channels INTEGER,
+    category INTEGER,
     FOREIGN KEY(channel) REFERENCES channels(channel_id)
 );
 
