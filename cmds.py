@@ -1,11 +1,7 @@
-import os, json, csv, sqlite3, colorama, requests, time
-
+import os, json, csv, sqlite3, requests, time, yt_dlp
 import datetime
 from dateutil.parser import *
-
-import yt_dlp
-from helpers import *
-
+import utils
 
 VIDEO_ID_LENGTH = 11
 PLAYLIST_ID_LENGTH = 34
@@ -13,10 +9,6 @@ RYD_API = "https://returnyoutubedislikeapi.com/"
 WAYBACK = "https://web.archive.org/web/"
 YOUTUBE = "https://www.youtube.com/"
 
-config = {
-    "thumbnails":False,
-    "comments":False
-}
 
 
 # Open the database
@@ -26,6 +18,17 @@ try:
         db.executescript(schema.read())
 except FileNotFoundError as e:
     print("Database schema not found.")
+
+
+options = {
+    "quiet": True,
+    "logger": utils.Logger()
+}
+
+config = {
+    "thumbnails": False,
+    "comments": False
+}
 
 
 # Global run command
@@ -72,6 +75,8 @@ class Archive:
 
         # Commit new rows
         db.commit()
+
+        # TODO: return if video is already stored
 
         # Add video
         cur.execute("INSERT OR IGNORE INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
@@ -177,20 +182,28 @@ class Media:
         raise Exception(f"Missing method")
 
     def get_info(self, video_id, simulate=True):
-        # if not video_id or not video_id[0]:
-        #     raise ValueError("Missing url")
-        # elif len(video_id[0]) != VIDEO_ID_LENGTH:
-        #     raise ValueError("Invalid video ID")
-        # else:
-        video_id = video_id[0]
-        print(f"[{video_id}] Extracting Information")
-        with yt_dlp.YoutubeDL({"quiet": True, "getcomments": config["comments"]}) as ydlp:
+        if not video_id or not video_id[0]:
+            raise ValueError("Missing url")
+        elif len(video_id[0]) != VIDEO_ID_LENGTH:
+            raise ValueError("Invalid video ID")
+        else: video_id = video_id[0]
+
+        utils.Logger.info("Extracting data.", video_id)
+        with yt_dlp.YoutubeDL({"getcomments":config["comments"]} | options) as ydlp:
             try:
                 info = ydlp.extract_info(video_id, download=False)
             except yt_dlp.utils.DownloadError as e:
                 # Attempt to get video from the wayback machine
-                info = ydlp.extract_info(f"{WAYBACK}{YOUTUBE}watch?v={video_id}", download=False)
-                info["availability"] = "unavailable"
+                utils.Logger.info("Searching the Wayback machine.", video_id)
+                try:
+                    info = ydlp.extract_info(f"{WAYBACK}{YOUTUBE}watch?v={video_id}", download=False)
+                    info["availability"] = "unavailable"
+                except yt_dlp.utils.DownloadError as e:
+                    info["availability"] = "lost"
+                    utils.Logger.error("Failed recovering video.")
+                except yt_dlp.utils.ExtractorError as e:
+                    raise yt_dlp.utils.ExtractorError(f"Extractor error: {e}")
+
             except yt_dlp.utils.ExtractorError as e:
                 raise yt_dlp.utils.ExtractorError(f"Extractor error: {e}")
 
@@ -199,6 +212,7 @@ class Media:
             info["thumbnail_url"] = info["thumbnail"]
             if config["thumbnails"]:
                 thumbnail = requests.get(info["thumbnail"])
+                print(thumbnail)
                 info["thumbnail"] = thumbnail.content
                 thumbnail.raise_for_status()
             else: info["thumbnail"] = None
@@ -207,6 +221,11 @@ class Media:
                 info.pop("like_count")
             if info.get("view_count"):
                 info.pop("view_count")
+            if info.get("description") == utils.DEFAULT_DESC:
+                info["description"] = ""
+            if info.get("upload_date"):
+                info["upload_date"] = parse(info.get("upload_date"))
+            else: info["upload_date"] = None
 
             # Get video rating
             ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}").json()
@@ -214,6 +233,8 @@ class Media:
             info["dislikes"] = ryd.get("dislikes")
             info["views"] = ryd.get("viewCount")
             info["rating"] = ryd.get("rating")
+            info["comments"] = info.get("comments")
+            info["channel_follower_count"] = info.get("channel_follower_count")
         else: raise ValueError("ERROR: Not a youtube domain")
 
         if not simulate:
@@ -224,11 +245,9 @@ class Media:
         try:
             info = self.get_info(video_id, False)
         except ValueError as e: raise e
-        print(list(info))
-        print()
-        print(info)
         print("\nThumbnail: " + info["thumbnail_url"])
         print(info["title"])
-        info["upload_date"] = date_convert(info["upload_date"] )
         print(f"{info['views']} views | {info['upload_date']} | {info['likes']} likes  {info['dislikes']} dislikes\n")
-        print(f"{info['channel']} | {info['channel_follower_count']} subscribers")
+        print(f"{info['uploader']} | {info['channel_follower_count']} subscribers")
+        print("-----------------------------------------------------------------")
+        print(info["description"])
