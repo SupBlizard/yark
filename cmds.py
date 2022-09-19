@@ -60,32 +60,51 @@ class Archive:
         raise Exception(f"Missing method")
 
     def video(self, video_id):
-        v = Media.get_info(self, video_id, simulate=False)
+        video_id = video_id[0]
         cur = db.cursor()
+        exists = cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone()
+        if exists:
+            if exists[1] != "lost":
+                utils.Logger.info("Video already archived, skipping.", video_id)
+                return
 
-        # TODO: check video is accessable
+            utils.Logger.info("Video previously archived but lost, attempting recovery", video_id)
+
+        # Extract video info
+        v = Media.get_info(self, [video_id], simulate=False)
+        if not v:
+            cur.execute("INSERT OR IGNORE INTO videos (video_id, availability) VALUES (?,?)", (video_id,"lost"))
+            db.commit()
+            return
 
         cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (v["uploader_id"], v["uploader"]))
         cur.execute("INSERT OR IGNORE INTO channels VALUES(?,?,?,?,?)", (
-            v["channel_id"], v["uploader_id"], v["channel"],
+            v["channel_id"], v["uploader_id"], v["uploader"],
             v["channel_follower_count"], v["channel_url"]
         ))
-
         # TODO: tags and categories
 
         # Commit new rows
         db.commit()
 
-        # TODO: return if video is already stored
-
         # Add video
-        cur.execute("INSERT OR IGNORE INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-            v["id"], v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"],
-            v["thumbnail_url"], v["duration"], v["duration_string"], v["view_count"],
-            v["age_limit"], v["webpage_url"], v["live_status"], v["likes"], v["dislikes"],
-            v["rating"], parse(v["upload_date"]).timestamp(), v["availability"], v["width"],
-            v["height"], v["fps"], v["audio_channels"], v["categories"][0]
-        ))
+        try:
+            cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+                v["id"], v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
+                v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
+                v["rating"], v["upload_date"].timestamp(), v["availability"], v["width"], v["height"], v["fps"],
+                v["audio_channels"], v["category"], None
+            ))
+        except sqlite3.IntegrityError:
+            cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
+                thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
+                dislikes = ?, rating = ?, upload_timestamp = ?, availability = ?, width = ?, height = ?,
+                fps = ?, audio_channels = ?, category = ? WHERE video_id == ?""", (
+                v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
+                v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
+                v["rating"], v["upload_date"].timestamp(), v["availability"], v["width"], v["height"], v["fps"],
+                v["audio_channels"], v["category"], v["id"]
+            ))
 
         # Add comments
         if v.get("comments"):
@@ -102,6 +121,9 @@ class Archive:
 
         # Commit new video
         db.commit()
+        if exists and exists[1] == "lost":
+            utils.Logger.info("Lost video somehow recovered!", video_id)
+        else: utils.Logger.info("Video successfully archived", video_id)
 
 
     def dump(self, args):
@@ -188,19 +210,19 @@ class Media:
             raise ValueError("Invalid video ID")
         else: video_id = video_id[0]
 
-        utils.Logger.info("Extracting data.", video_id)
+        utils.Logger.info("Extracting data", video_id)
         with yt_dlp.YoutubeDL({"getcomments":config["comments"]} | options) as ydlp:
             try:
                 info = ydlp.extract_info(video_id, download=False)
             except yt_dlp.utils.DownloadError as e:
                 # Attempt to get video from the wayback machine
-                utils.Logger.info("Searching the Wayback machine.", video_id)
+                utils.Logger.info("Searching the Wayback machine", video_id)
                 try:
                     info = ydlp.extract_info(f"{WAYBACK}{YOUTUBE}watch?v={video_id}", download=False)
-                    info["availability"] = "unavailable"
+                    info["availability"] = "recovered"
                 except yt_dlp.utils.DownloadError as e:
-                    info["availability"] = "lost"
-                    utils.Logger.error("Failed recovering video.")
+                    print(utils.err_format("Failed recovering video"))
+                    return
                 except yt_dlp.utils.ExtractorError as e:
                     raise yt_dlp.utils.ExtractorError(f"Extractor error: {e}")
 
@@ -223,6 +245,17 @@ class Media:
                 info.pop("view_count")
             if info.get("description") == utils.DEFAULT_DESC:
                 info["description"] = ""
+            if not info.get("age_limit"):
+                info["age_limit"] = 0;
+            if not info.get("live_status"):
+                info["live_status"] = None
+            if not info.get("fps"):
+                info["fps"] = None
+            if not info.get("audio_channels"):
+                info["audio_channels"] = None
+            if not info.get("category"):
+                info["category"] = None
+            else: info["category"] = info["category"][0]
             if info.get("upload_date"):
                 info["upload_date"] = parse(info.get("upload_date"))
             else: info["upload_date"] = None
@@ -235,16 +268,18 @@ class Media:
             info["rating"] = ryd.get("rating")
             info["comments"] = info.get("comments")
             info["channel_follower_count"] = info.get("channel_follower_count")
-        else: raise ValueError("ERROR: Not a youtube domain")
+        else:
+            utils.Logger.error()
+            return
 
         if not simulate:
             return info
 
 
     def print_info(self, video_id):
-        try:
-            info = self.get_info(video_id, False)
-        except ValueError as e: raise e
+        info = self.get_info(video_id, False)
+        if not info: return
+
         print("\nThumbnail: " + info["thumbnail_url"])
         print(info["title"])
         print(f"{info['views']} views | {info['upload_date']} | {info['likes']} likes  {info['dislikes']} dislikes\n")
