@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS channels (
     channel_id TEXT PRIMARY KEY NOT NULL,
-    uploader_id TEXT NOT NULL UNIQUE,
+    uploader_id TEXT,
     name TEXT NOT NULL,
     channel_follower_count INTEGER,
     url TEXT NOT NULL UNIQUE,
@@ -90,11 +90,11 @@ CREATE TABLE IF NOT EXISTS playlists (
 );
 
 CREATE TABLE IF NOT EXISTS playlist_videos (
-    pr_id INTEGER PRIMARY KEY NOT NULL,
+    pl INTEGER PRIMARY KEY NOT NULL,
     playlist TEXT NOT NULL,
     video TEXT NOT NULL,
     added INTEGER NOT NULL,
-    FOREIGN KEY(playlist) REFERENCES playlists(playlist_id),
+    FOREIGN KEY(playlist) REFERENCES playlists(playlist_id) ON DELETE CASCADE,
     FOREIGN KEY(video) REFERENCES videos(video_id)
 );
 

@@ -77,10 +77,10 @@ class Archive:
             db.commit()
             return
 
-        cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (v["uploader_id"], v["uploader"]))
+        cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (v.get("uploader_id"), v.get("uploader")))
         cur.execute("INSERT OR IGNORE INTO channels VALUES(?,?,?,?,?)", (
-            v["channel_id"], v["uploader_id"], v["uploader"],
-            v["channel_follower_count"], v["channel_url"]
+            v.get("channel_id"), v.get("uploader_id"), (v.get("channel") or v.get("uploader")),
+            v.get("channel_follower_count"), v.get("channel_url")
         ))
 
         if v.get("category"):
@@ -98,6 +98,7 @@ class Archive:
                 v["audio_channels"], v["category"], v["filesize"], None
             ))
         except sqlite3.IntegrityError:
+            utils.Logger.error(msg=utils.err_format("Integrity Error", video_id, "sqlite3"))
             # Update video info
             cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
                 thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
@@ -178,8 +179,13 @@ class Archive:
         except Exception as e:
             print(e)
 
+        cur = db.cursor()
+
+        # Clear previous playlist data
+        cur.execute("DELETE FROM playlists WHERE playlist_id == ?", (playlist["Playlist ID"],))
+
         # Store playlist
-        db.execute("INSERT OR IGNORE INTO playlists VALUES(?,?,?,?,?,?,?)", (playlist["Playlist ID"],
+        cur.execute("INSERT OR IGNORE INTO playlists VALUES(?,?,?,?,?,?,?)", (playlist["Playlist ID"],
             playlist["Channel ID"], parse(playlist["Time Created"]).timestamp(),
             parse(playlist["Time Updated"]).timestamp(), playlist["Title"],
             playlist["Description"], playlist["Visibility"])
@@ -191,11 +197,14 @@ class Archive:
             video = [video[0].replace(" ", ""), parse(video[1]).timestamp()]
             try:
                 self.video([video[0]])
-                db.execute("""INSERT INTO playlist_videos(playlist, video, added)
+                cur.execute("""INSERT INTO playlist_videos(playlist, video, added)
                 VALUES(?,?,?)""", (playlist["Playlist ID"], video[0], video[1]))
+
             except sqlite3.IntegrityError:
+                utils.Logger.error(msg=utils.err_format("Integrity Error", video[0], "sqlite3"))
                 continue
 
+        db.commit()
         print("Finished Archiving playlist !")
 
 
@@ -288,7 +297,7 @@ class Media:
             info["comments"] = info.get("comments")
             info["channel_follower_count"] = info.get("channel_follower_count")
         else:
-            utils.Logger.error()
+            utils.Logger.error(msg=err_format("Invalid extractor", id=video_id, process="get_info"))
             return
 
         if not simulate:
