@@ -1,4 +1,4 @@
-import os, json, csv, sqlite3, requests, time, yt_dlp
+import os, json, csv, sqlite3, requests, time, yt_dlp, time
 import datetime
 from dateutil.parser import *
 import utils
@@ -226,17 +226,22 @@ class Media:
             except yt_dlp.utils.DownloadError as e:
                 # Attempt to get video from the wayback machine
                 utils.Logger.info("Searching the Wayback machine", video_id)
-                try:
-                    info = ydlp.extract_info(f"{WAYBACK}{YOUTUBE}watch?v={video_id}", download=False)
-                    info["availability"] = "recovered"
-                except yt_dlp.utils.DownloadError as e:
-                    print(utils.err_format("Failed recovering video"))
-                    return
-                except yt_dlp.utils.ExtractorError as e:
-                    raise yt_dlp.utils.ExtractorError(f"Extractor error: {e}")
 
-            except yt_dlp.utils.ExtractorError as e:
-                raise yt_dlp.utils.ExtractorError(f"Extractor error: {e}")
+                attempts = 3
+                while True:
+                    try:
+                        info = ydlp.extract_info(f"{WAYBACK}{YOUTUBE}watch?v={video_id}", download=False)
+                        info["availability"] = "recovered"
+                        break
+                    except yt_dlp.utils.DownloadError as e:
+                        attempts -= 1
+                        if attempts < 1:
+                            print(utils.err_format("Failed recovering video"))
+                            return
+                        utils.Logger.info(f"Retrying, {attempts} left", video_id)
+                    time.sleep(2)
+
+
 
         if info["extractor"] == "youtube" or info["extractor"] == "web.archive:youtube":
             # Download thumbnail
