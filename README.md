@@ -20,3 +20,6 @@ Finally run the program
 ```
 python yark.py
 ```
+
+# Thanks
+Thank you @pukkandan and @coletdjnz for being such a great help sorting out some yt-dlp bugs quite quickly.
