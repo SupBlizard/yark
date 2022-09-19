@@ -5,3 +5,4 @@ thumbnails
 *.exe
 *.bat
 *.db
+*.db-journal
