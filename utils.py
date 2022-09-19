@@ -3,8 +3,8 @@ from colorama import *
 # CONSTANTS
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 
-def err_format(msg, id=""):
-    if id: id = f"[youtube] {id}: "
+def err_format(msg, id="", process="youtube"):
+    if id: id = f"[{process}] {id}: "
     return f"{Fore.RED}ERROR: {Style.RESET_ALL}{id}{msg}"
 
 # Custom logger
@@ -16,7 +16,7 @@ class Logger(object):
         # TODO: Save event in debug log
         pass
 
-    def error(self, msg=None):
+    def error(self=None, msg=None):
         # TODO: Save event in debug log
         if msg: print(msg)
 
