@@ -15,21 +15,19 @@ CREATE TABLE IF NOT EXISTS channels (
 );
 
 CREATE TABLE IF NOT EXISTS categories (
-    category_id INTEGER PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL
+    name TEXT PRIMARY KEY NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS tags (
-    tag_id INTEGER PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL
+    name TEXT PRIMARY KEY NOT NULL UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS tags_relations (
-    tr_id INTEGER PRIMARY KEY NOT NULL,
+CREATE TABLE IF NOT EXISTS video_tags (
+    id INTEGER PRIMARY KEY NOT NULL,
     video TEXT NOT NULL,
     tag INTEGER NOT NULL,
-    FOREIGN KEY(video) REFERENCES video(video_id),
-    FOREIGN KEY(tag) REFERENCES tag(tag_id)
+    FOREIGN KEY(video) REFERENCES videos(video_id),
+    FOREIGN KEY(tag) REFERENCES tags(name)
 );
 
 CREATE TABLE IF NOT EXISTS comments (
@@ -69,6 +67,7 @@ CREATE TABLE IF NOT EXISTS videos (
     audio_channels INTEGER,
     category INTEGER,
     archived INTEGER DEFAULT (strftime('%s','now')),
+    FOREIGN KEY(category) REFERENCES categories(name),
     FOREIGN KEY(channel) REFERENCES channels(channel_id)
 );
 
@@ -101,18 +100,18 @@ CREATE TABLE IF NOT EXISTS playlist_videos (
 
 
 -- Insert youtube's categories
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('1', 'Film & Animation');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('2', 'Autos & Vehicles');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('10', 'Music');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('15', 'Pets & Animals');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('17', 'Sports');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('19', 'Travel & Events');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('20', 'Gaming');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('22', 'People & Blogs');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('23', 'Comedy');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('24', 'Entertainment');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('25', 'News & Politics');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('26', 'Howto & Style');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('27', 'Education');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('28', 'Science & Technology');
-INSERT OR IGNORE INTO categories ('category_id','name') VALUES ('29', 'Nonprofits & Activism');
+INSERT OR IGNORE INTO categories VALUES ('Film & Animation');
+INSERT OR IGNORE INTO categories VALUES ('Autos & Vehicles');
+INSERT OR IGNORE INTO categories VALUES ('Music');
+INSERT OR IGNORE INTO categories VALUES ('Pets & Animals');
+INSERT OR IGNORE INTO categories VALUES ('Sports');
+INSERT OR IGNORE INTO categories VALUES ('Travel & Events');
+INSERT OR IGNORE INTO categories VALUES ('Gaming');
+INSERT OR IGNORE INTO categories VALUES ('People & Blogs');
+INSERT OR IGNORE INTO categories VALUES ('Comedy');
+INSERT OR IGNORE INTO categories VALUES ('Entertainment');
+INSERT OR IGNORE INTO categories VALUES ('News & Politics');
+INSERT OR IGNORE INTO categories VALUES ('Howto & Style');
+INSERT OR IGNORE INTO categories VALUES ('Education');
+INSERT OR IGNORE INTO categories VALUES ('Science & Technology');
+INSERT OR IGNORE INTO categories VALUES ('Nonprofits & Activism');

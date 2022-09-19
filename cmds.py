@@ -82,7 +82,9 @@ class Archive:
             v["channel_id"], v["uploader_id"], v["uploader"],
             v["channel_follower_count"], v["channel_url"]
         ))
-        # TODO: tags and categories
+
+        if v.get("category"):
+            cur.execute("INSERT OR IGNORE INTO categories VALUES(?)", (v.get("category"),))
 
         # Commit new rows
         db.commit()
@@ -96,6 +98,7 @@ class Archive:
                 v["audio_channels"], v["category"], None
             ))
         except sqlite3.IntegrityError:
+            # Update video info
             cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
                 thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
                 dislikes = ?, rating = ?, upload_timestamp = ?, availability = ?, width = ?, height = ?,
@@ -108,7 +111,7 @@ class Archive:
 
         # Add comments
         if v.get("comments"):
-            for c in v["comments"]:
+            for c in v.get("comments"):
                 # Check if user is in the database
                 if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (c["author_id"],)).fetchone():
                     cur.execute("INSERT INTO users VALUES(?,?)", (c["author_id"], c["author"]))
@@ -118,6 +121,12 @@ class Archive:
                     c["id"], v["id"], c["author_id"], c["text"], c["like_count"],
                     c["is_favorited"], c["author_is_uploader"], c["parent"], c["timestamp"]
                 ))
+
+        # Add video tags
+        if v.get("tags"):
+            for tag in v.get("tags"):
+                cur.execute("INSERT OR IGNORE INTO tags VALUES(?)", (tag,))
+                cur.execute("INSERT OR IGNORE INTO video_tags(video, tag) VALUES(?,?)", (v["id"], tag))
 
         # Commit new video
         db.commit()
@@ -253,9 +262,9 @@ class Media:
                 info["fps"] = None
             if not info.get("audio_channels"):
                 info["audio_channels"] = None
-            if not info.get("category"):
+            if not info.get("categories"):
                 info["category"] = None
-            else: info["category"] = info["category"][0]
+            else: info["category"] = info["categories"][0]
             if info.get("upload_date"):
                 info["upload_date"] = parse(info.get("upload_date"))
             else: info["upload_date"] = None
