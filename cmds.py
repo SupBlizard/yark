@@ -91,22 +91,22 @@ class Archive:
 
         # Add video
         try:
-            cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
                 v["id"], v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
                 v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
                 v["rating"], v["upload_date"].timestamp(), v["availability"], v["width"], v["height"], v["fps"],
-                v["audio_channels"], v["category"], None
+                v["audio_channels"], v["category"], v["filesize"], None
             ))
         except sqlite3.IntegrityError:
             # Update video info
             cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
                 thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
                 dislikes = ?, rating = ?, upload_timestamp = ?, availability = ?, width = ?, height = ?,
-                fps = ?, audio_channels = ?, category = ? WHERE video_id == ?""", (
+                fps = ?, audio_channels = ?, category = ?, filesize = ? WHERE video_id == ?""", (
                 v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
                 v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
                 v["rating"], v["upload_date"].timestamp(), v["availability"], v["width"], v["height"], v["fps"],
-                v["audio_channels"], v["category"], v["id"]
+                v["audio_channels"], v["category"], v["filesize"], v["id"]
             ))
 
         # Add comments
@@ -262,6 +262,11 @@ class Media:
                 info["fps"] = None
             if not info.get("audio_channels"):
                 info["audio_channels"] = None
+            if not info.get("filesize_approx"):
+                info["filesize"] = None
+            else:
+                info["filesize"] = info.get("filesize_approx")
+                info.pop("filesize_approx")
             if not info.get("categories"):
                 info["category"] = None
             else: info["category"] = info["categories"][0]

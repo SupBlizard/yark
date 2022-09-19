@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS videos (
     fps REAL,
     audio_channels INTEGER,
     category INTEGER,
+    filesize INTEGER,
     archived INTEGER DEFAULT (strftime('%s','now')),
     FOREIGN KEY(category) REFERENCES categories(name),
     FOREIGN KEY(channel) REFERENCES channels(channel_id)
