@@ -242,7 +242,7 @@ class Media:
                 attempts = 3
                 while True:
                     try:
-                        info = ydlp.extract_info(f"{WAYBACK}{YOUTUBE}watch?v={video_id}", download=False)
+                        info = ydlp.extract_info(f"{utils.WAYBACK}{utils.YOUTUBE}watch?v={video_id}", download=False)
                         info["availability"] = "recovered"
                         break
                     except yt_dlp.utils.DownloadError as e:
@@ -270,44 +270,28 @@ class Media:
                 except requests.RequestException:
                     utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", video_id, "requests"))
 
-            if info.get("like_count"):
-                info.pop("like_count")
-            if info.get("view_count"):
-                info.pop("view_count")
-            if info.get("description") == utils.DEFAULT_DESC:
-                info["description"] = ""
-            if not info.get("age_limit"):
-                info["age_limit"] = 0;
-            if not info.get("live_status"):
-                info["live_status"] = None
-            if not info.get("fps"):
-                info["fps"] = None
-            if not info.get("audio_channels"):
-                info["audio_channels"] = None
-            if not info.get("filesize_approx"):
-                info["filesize"] = None
-            else:
-                info["filesize"] = info.get("filesize_approx")
-                info.pop("filesize_approx")
-            if not info.get("categories"):
-                info["category"] = None
-            else: info["category"] = info["categories"][0]
-            if info.get("upload_date"):
-                info["upload_date"] = parse(info.get("upload_date"))
-            else: info["upload_date"] = None
-
-
             try:
                 # Get video rating
-                ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}").json()
-                ryd.raise_for_status()
+                ryd = requests.get(f"{utils.RYD_API}Votes?videoId={video_id}").json()
+                print(ryd)
+                if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
+            except requests.RequestException as e:
+                utils.Logger.error(msg=utils.err_format(e, video_id, "requests"))
+                ryd = {}
 
-                info["likes"] = ryd.get("likes")
-                info["dislikes"] = ryd.get("dislikes")
-                info["views"] = ryd.get("viewCount")
-                info["rating"] = ryd.get("rating")
-            except requests.RequestException:
-                utils.Logger.error(msg=utils.err_format("Failed getting ratings", video_id, "requests"))
+            if info.get("description") == utils.DEFAULT_DESC: info["description"] = ""
+            info["age_limit"] = (info.get("age_limit") or None)
+            info["live_status"] = (info.get("live_status") or None)
+            info["fps"] = (info.get("fps") or None)
+            info["audio_channels"] = (info.get("audio_channels") or None)
+            info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
+            info["upload_date"] = parse(info["upload_date"]) if info.get("upload_date") else None
+            info["category"] = info["categories"][0] if info.get("categories") else None
+
+            info["likes"] = (ryd.get("likes") or info.get("like_count"))
+            info["dislikes"] = ryd.get("dislikes")
+            info["views"] = (ryd.get("viewCount") or info.get("like_count"))
+            info["rating"] = ryd.get("rating")
 
             info["comments"] = info.get("comments")
             info["channel_follower_count"] = info.get("channel_follower_count")
