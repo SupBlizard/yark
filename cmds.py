@@ -3,11 +3,7 @@ import datetime
 from dateutil.parser import *
 import utils
 
-VIDEO_ID_LENGTH = 11
-PLAYLIST_ID_LENGTH = 34
-RYD_API = "https://returnyoutubedislikeapi.com/"
-WAYBACK = "https://web.archive.org/web/"
-YOUTUBE = "https://www.youtube.com/"
+
 
 
 
@@ -175,12 +171,12 @@ class Archive:
                 pl_file.seek(0)
 
                 playlist["Videos"] = list(csv.reader(pl_file, delimiter=','))[4:-1]
+            if len(playlist.get("Playlist ID")) != utils.PLAYLIST_ID_LENGTH:
+                raise ValueError("Invalid playlist ID")
         except FileNotFoundError:
             raise FileNotFoundError("Playlist file not found")
         except csv.Error as e:
-            print("ERROR: The CSV reader appears illiterate.", e)
-        except Exception as e:
-            print(e)
+            print("The CSV reader appears illiterate.", e)
 
         cur = db.cursor()
 
@@ -231,7 +227,7 @@ class Media:
     def get_info(self, video_id, simulate=True):
         if not video_id or not video_id[0]:
             raise ValueError("Missing url")
-        elif len(video_id[0]) != VIDEO_ID_LENGTH:
+        elif len(video_id[0]) != utils.VIDEO_ID_LENGTH:
             raise ValueError("Invalid video ID")
         else: video_id = video_id[0]
 
@@ -305,7 +301,7 @@ class Media:
                 # Get video rating
                 ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}").json()
                 ryd.raise_for_status()
-                
+
                 info["likes"] = ryd.get("likes")
                 info["dislikes"] = ryd.get("dislikes")
                 info["views"] = ryd.get("viewCount")
