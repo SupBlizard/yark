@@ -1,11 +1,29 @@
+import time
 from colorama import *
 
 # CONSTANTS
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
+DELETE = "\033[K\033[A"*2
 
 def err_format(msg, id="", process="youtube"):
     if id: id = f"[{process}] {id}: "
     return f"{Fore.RED}ERROR: {Style.RESET_ALL}{id}{msg}"
+
+
+def step_format(position, length, started):
+    measures = ["sec", "min", "hr"]
+    eta = (time.time() - started) * (length / position) - 1
+    if eta < 0: eta = 0
+
+    measure = 0
+    for i in range(2):
+        if eta >= 60:
+            eta /= 60
+            measure += 1
+    eta = round(eta, 1)
+    if eta % 1 == 0: eta = int(eta)
+
+    print(f"\n{Fore.CYAN}[{position} / {length}]{Style.RESET_ALL} ETA: {eta} {measures[measure]} {(time.time() - started)} {(length / position) - 1}")
 
 # Custom logger
 class Logger(object):
@@ -20,6 +38,6 @@ class Logger(object):
         # TODO: Save event in debug log
         if msg: print(msg)
 
-    def info(msg, vid=""):
-        vid = "" if vid=="" else " "+vid
-        print(f"{Fore.CYAN}INFO: {Style.RESET_ALL} [youtube]{vid}: {msg}")
+    def info(msg, vid="", process="youtube"):
+        if vid: vid = f"[{process}] {vid}: "
+        print(f"{Fore.CYAN}INFO: {Style.RESET_ALL}{vid}{msg}")
