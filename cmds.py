@@ -272,8 +272,7 @@ class Media:
 
             try:
                 # Get video rating
-                ryd = requests.get(f"{utils.RYD_API}Votes?videoId={video_id}").json()
-                print(ryd)
+                ryd = requests.get(f"{utils.RYD_API}Votes?videoId={video_id}", timeout=0.2).json()
                 if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
             except requests.RequestException as e:
                 utils.Logger.error(msg=utils.err_format(e, video_id, "requests"))
