@@ -1,4 +1,4 @@
-import os, json, csv, sqlite3, requests, time, yt_dlp, time
+import os, json, csv, sqlite3, requests, time, yt_dlp
 import datetime
 from dateutil.parser import *
 import utils
@@ -26,7 +26,7 @@ options = {
 }
 
 config = {
-    "thumbnails": False,
+    "thumbnails": True,
     "comments": False
 }
 
@@ -133,7 +133,10 @@ class Archive:
         db.commit()
         if exists and exists[1] == "lost":
             utils.Logger.info("Lost video somehow recovered!", video_id)
-        else: utils.Logger.info("Video successfully archived", video_id)
+        elif v.get("availability") == "recovered":
+            utils.Logger.info("Video successfully recovered and archived", video_id)
+        else:
+            utils.Logger.info("Video successfully archived", video_id)
 
 
     def dump(self, args):
@@ -192,20 +195,24 @@ class Archive:
         )
 
         # Save videos
-        for video in playlist["Videos"]:
+        time_started = utils.time.time()
+        for i, video in enumerate(playlist["Videos"]):
+            utils.step_format(i+1, len(playlist["Videos"]), time_started)
             # remove spaces
             video = [video[0].replace(" ", ""), parse(video[1]).timestamp()]
             try:
                 self.video([video[0]])
-                cur.execute("""INSERT INTO playlist_videos(playlist, video, added)
-                VALUES(?,?,?)""", (playlist["Playlist ID"], video[0], video[1]))
+                cur.execute("INSERT INTO playlist_videos(playlist, video, added) VALUES(?,?,?)", (
+                    playlist["Playlist ID"], video[0], video[1]
+                ))
 
             except sqlite3.IntegrityError:
                 utils.Logger.error(msg=utils.err_format("Integrity Error", video[0], "sqlite3"))
                 continue
 
+
         db.commit()
-        print("Finished Archiving playlist !")
+        print(f"{utils.Fore.GREEN}Finished Archiving playlist <{playlist['Title']}>{utils.Style.RESET_ALL}")
 
 
 
@@ -248,19 +255,24 @@ class Media:
                             print(utils.err_format("Failed recovering video"))
                             return
                         utils.Logger.info(f"Retrying, {attempts} left", video_id)
-                    time.sleep(2)
+                    utils.time.sleep(2)
 
 
 
         if info["extractor"] == "youtube" or info["extractor"] == "web.archive:youtube":
+            info["thumbnail_url"] = info["thumbnail"].split("?")[0]
+            info["thumbnail"] = None
+
             # Download thumbnail
-            info["thumbnail_url"] = info["thumbnail"]
             if config["thumbnails"]:
-                thumbnail = requests.get(info["thumbnail"])
-                print(thumbnail)
-                info["thumbnail"] = thumbnail.content
-                thumbnail.raise_for_status()
-            else: info["thumbnail"] = None
+                utils.Logger.info(f"Downloading video thumbnail", video_id)
+                try:
+                    thumbnail = requests.get(info["thumbnail_url"])
+                    thumbnail.raise_for_status()
+                    info["thumbnail"] = thumbnail.content
+                    if not info["thumbnail"]: raise
+                except requests.RequestException:
+                    utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", video_id, "requests"))
 
             if info.get("like_count"):
                 info.pop("like_count")
@@ -288,12 +300,19 @@ class Media:
                 info["upload_date"] = parse(info.get("upload_date"))
             else: info["upload_date"] = None
 
-            # Get video rating
-            ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}").json()
-            info["likes"] = ryd.get("likes")
-            info["dislikes"] = ryd.get("dislikes")
-            info["views"] = ryd.get("viewCount")
-            info["rating"] = ryd.get("rating")
+
+            try:
+                # Get video rating
+                ryd = requests.get(f"{RYD_API}Votes?videoId={info['id']}").json()
+                ryd.raise_for_status()
+                
+                info["likes"] = ryd.get("likes")
+                info["dislikes"] = ryd.get("dislikes")
+                info["views"] = ryd.get("viewCount")
+                info["rating"] = ryd.get("rating")
+            except requests.RequestException:
+                utils.Logger.error(msg=utils.err_format("Failed getting ratings", video_id, "requests"))
+
             info["comments"] = info.get("comments")
             info["channel_follower_count"] = info.get("channel_follower_count")
         else:
