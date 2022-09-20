@@ -2,6 +2,11 @@ import time
 from colorama import *
 
 # CONSTANTS
+VIDEO_ID_LENGTH = 11
+PLAYLIST_ID_LENGTH = 34
+RYD_API = "https://returnyoutubedislikeapi.com/"
+WAYBACK = "https://web.archive.org/web/"
+YOUTUBE = "https://www.youtube.com/"
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 DELETE = "\033[K\033[A"*2
 
