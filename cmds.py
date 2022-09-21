@@ -228,7 +228,23 @@ class Unarchive:
         pass
 
     def video(self, video_id):
-        pass
+        if not video_id or not video_id[0]:
+            raise ValueError("Missing video ID")
+        elif len(video_id[0]) != utils.VIDEO_ID_LENGTH:
+            raise ValueError("Invalid video ID")
+        else: video_id = video_id[0]
+
+        # TODO: confirm you want to delete the video
+
+        if db.execute("SELECT video_id FROM videos WHERE video_id == ?", (video_id,)).fetchone():
+            db.execute("DELETE FROM videos WHERE video_id == ?", (video_id,))
+            db.commit()
+            print(f"{utils.Fore.GREEN}Successfully deleted video <{video_id}>{utils.Style.RESET_ALL}")
+        else: utils.Logger.error(msg=utils.err_format(f"Video not found", video_id, "sqlite3"))
+
+
+
+
 
     def playlist(self, playlist_id):
         pass
@@ -243,7 +259,7 @@ class Media:
 
     def get_info(self, video_id, simulate=True):
         if not video_id or not video_id[0]:
-            raise ValueError("Missing url")
+            raise ValueError("Missing video ID")
         elif len(video_id[0]) != utils.VIDEO_ID_LENGTH:
             raise ValueError("Invalid video ID")
         else: video_id = video_id[0]
