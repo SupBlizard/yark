@@ -1,5 +1,5 @@
 import time
-from colorama import *
+from colorama import Style, Fore, Back
 
 # CONSTANTS
 VIDEO_ID_LENGTH = 11
