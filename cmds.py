@@ -224,8 +224,27 @@ class Unarchive:
     def default(self):
         raise Exception(f"Missing method")
 
-    def __confirmation(self):
-        pass
+    def __confirm(self, id):
+        thing = None
+        if len(id) == utils.VIDEO_ID_LENGTH:
+            thing = "video"
+        elif len(id) == utils.PLAYLIST_ID_LENGTH:
+            thing = "playlist"
+        else:
+            utils.Logger.error(msg=utils.err_format(f"Invalid id", id, "confirmation"))
+
+        print(f"Delete {thing} <{id}>? (THIS CANNOT BE REVERTED)")
+        doit = input("[yes / no]: ").lower()
+
+        yes = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it", "why not", "please"]
+        no = ["no", "n", "nah", "nou", "dont", "don't", "fine", "not today", ""]
+        if doit in yes:
+            return True
+        elif doit in no:
+            return False
+        else:
+            print("I'm assuming that's a no")
+            return False
 
     def video(self, video_id):
         if not video_id or not video_id[0]:
@@ -234,9 +253,10 @@ class Unarchive:
             raise ValueError("Invalid video ID")
         else: video_id = video_id[0]
 
-        # TODO: confirm you want to delete the video
-
         if db.execute("SELECT video_id FROM videos WHERE video_id == ?", (video_id,)).fetchone():
+            # Confirm user wants to delete the video
+            if not self.__confirm(video_id): return
+
             db.execute("DELETE FROM videos WHERE video_id == ?", (video_id,))
             db.commit()
             print(f"{utils.Fore.GREEN}Successfully deleted video <{video_id}>{utils.Style.RESET_ALL}")
@@ -251,6 +271,9 @@ class Unarchive:
         else: playlist_id = playlist_id[0]
 
         if db.execute("SELECT playlist_id FROM playlists WHERE playlist_id == ?", (playlist_id,)).fetchone():
+            # Confirm user wants to delete the playlist
+            if not self.__confirm(playlist_id): return
+
             db.execute("DELETE FROM playlists WHERE playlist_id == ?", (playlist_id,))
             db.commit()
             print(f"{utils.Fore.GREEN}Successfully deleted playlist <{playlist_id}>{utils.Style.RESET_ALL}")
