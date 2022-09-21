@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS channels (
     name TEXT NOT NULL,
     channel_follower_count INTEGER,
     url TEXT NOT NULL UNIQUE,
-    FOREIGN KEY(uploader_id) REFERENCES users(user_id)
+    FOREIGN KEY(uploader_id) REFERENCES users(user_id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS video_tags (
     id INTEGER PRIMARY KEY NOT NULL,
     video TEXT NOT NULL,
     tag TEXT NOT NULL,
-    FOREIGN KEY(video) REFERENCES videos(video_id),
-    FOREIGN KEY(tag) REFERENCES tags(name)
+    FOREIGN KEY(video) REFERENCES videos(video_id) ON DELETE CASCADE,
+    FOREIGN KEY(tag) REFERENCES tags(name) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS comments (
@@ -40,9 +40,9 @@ CREATE TABLE IF NOT EXISTS comments (
     author_is_uploader INTEGER NOT NULL,
     parent TEXT,
     timestamp INTEGER NOT NULL,
-    FOREIGN KEY(video) REFERENCES videos(video_id),
-    FOREIGN KEY(author) REFERENCES users(user_id),
-    FOREIGN KEY(parent) REFERENCES comments(comment_id)
+    FOREIGN KEY(video) REFERENCES videos(video_id) ON DELETE CASCADE,
+    FOREIGN KEY(author) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(parent) REFERENCES comments(comment_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS videos (
@@ -68,14 +68,14 @@ CREATE TABLE IF NOT EXISTS videos (
     category TEXT,
     filesize INTEGER,
     archived INTEGER DEFAULT (strftime('%s','now')),
-    FOREIGN KEY(category) REFERENCES categories(name),
-    FOREIGN KEY(channel) REFERENCES channels(channel_id)
+    FOREIGN KEY(category) REFERENCES categories(name) ON DELETE RESTRICT,
+    FOREIGN KEY(channel) REFERENCES channels(channel_id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS history (
     history_id INTEGER PRIMARY KEY NOT NULL,
-    video TEXT NOT NULL UNIQUE,
-    timestamp INTEGER NOT NULL,
+    video TEXT NOT NULL,
+    watched INTEGER NOT NULL,
     FOREIGN KEY(history_id) REFERENCES videos(video_id)
 );
 
@@ -92,10 +92,9 @@ CREATE TABLE IF NOT EXISTS playlists (
 CREATE TABLE IF NOT EXISTS playlist_videos (
     pl INTEGER PRIMARY KEY NOT NULL,
     playlist TEXT NOT NULL,
-    video TEXT NOT NULL,
+    video TEXT NOT NULL, -- No foreign key as playlists must remain static
     added INTEGER NOT NULL,
-    FOREIGN KEY(playlist) REFERENCES playlists(playlist_id) ON DELETE CASCADE,
-    FOREIGN KEY(video) REFERENCES videos(video_id)
+    FOREIGN KEY(playlist) REFERENCES playlists(playlist_id) ON DELETE CASCADE
 );
 
 
