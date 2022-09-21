@@ -93,8 +93,8 @@ class Archive:
                 v["rating"], v["upload_date"].timestamp(), v["availability"], v["width"], v["height"], v["fps"],
                 v["audio_channels"], v["category"], v["filesize"], None
             ))
-        except sqlite3.IntegrityError:
-            utils.Logger.error(msg=utils.err_format("Integrity Error", video_id, "sqlite3"))
+        except sqlite3.IntegrityError as e:
+            utils.Logger.error(msg=utils.err_format(f"Integrity Error: {e}", video_id, "sqlite3"))
             # Update video info
             cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
                 thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
@@ -123,7 +123,7 @@ class Archive:
         if v.get("tags"):
             for tag in v.get("tags"):
                 cur.execute("INSERT OR IGNORE INTO tags VALUES(?)", (tag,))
-                cur.execute("INSERT OR IGNORE INTO video_tags(video, tag) VALUES(?,?)", (v["id"], tag))
+                cur.execute("INSERT OR IGNORE INTO video_tags(video, tag) VALUES(?,?)", (video_id, tag))
 
         # Commit new video
         db.commit()
@@ -202,8 +202,8 @@ class Archive:
                     playlist["Playlist ID"], video[0], video[1]
                 ))
 
-            except sqlite3.IntegrityError:
-                utils.Logger.error(msg=utils.err_format("Integrity Error", video[0], "sqlite3"))
+            except sqlite3.IntegrityError as e:
+                utils.Logger.error(msg=utils.err_format(f"Integrity Error: {e}", video[0], "sqlite3"))
                 continue
 
 
@@ -289,7 +289,7 @@ class Media:
 
             info["likes"] = (ryd.get("likes") or info.get("like_count"))
             info["dislikes"] = ryd.get("dislikes")
-            info["views"] = (ryd.get("viewCount") or info.get("like_count"))
+            info["views"] = (ryd.get("viewCount") or info.get("view_count"))
             info["rating"] = ryd.get("rating")
 
             info["comments"] = info.get("comments")

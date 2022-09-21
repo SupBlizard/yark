@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS video_tags (
     id INTEGER PRIMARY KEY NOT NULL,
     video TEXT NOT NULL,
-    tag INTEGER NOT NULL,
+    tag TEXT NOT NULL,
     FOREIGN KEY(video) REFERENCES videos(video_id),
     FOREIGN KEY(tag) REFERENCES tags(name)
 );
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS videos (
     height INTEGER,
     fps REAL,
     audio_channels INTEGER,
-    category INTEGER,
+    category TEXT,
     filesize INTEGER,
     archived INTEGER DEFAULT (strftime('%s','now')),
     FOREIGN KEY(category) REFERENCES categories(name),
