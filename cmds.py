@@ -216,6 +216,23 @@ class Archive:
         pass
 
 
+# https://www.youtube.com/watch?v=gbRe9zGFh6k
+class Unarchive:
+    def __init__(self):
+        self.help = "TODO"
+
+    def default(self):
+        raise Exception(f"Missing method")
+
+    def __confirmation(self):
+        pass
+
+    def video(self, video_id):
+        pass
+
+    def playlist(self, playlist_id):
+        pass
+
 
 class Media:
     def __init__(self):
