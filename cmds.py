@@ -208,7 +208,7 @@ class Archive:
 
 
         db.commit()
-        print(f"{utils.Fore.GREEN}Finished Archiving playlist <{playlist['Title']}>{utils.Style.RESET_ALL}")
+        print(f"{utils.Fore.GREEN}Finished Archiving playlist <{playlist['Title']}> ({playlist['Playlist ID']}){utils.Style.RESET_ALL}")
 
 
 
@@ -243,11 +243,18 @@ class Unarchive:
         else: utils.Logger.error(msg=utils.err_format(f"Video not found", video_id, "sqlite3"))
 
 
-
-
-
     def playlist(self, playlist_id):
-        pass
+        if not playlist_id or not playlist_id[0]:
+            raise ValueError("Missing playlist ID")
+        elif len(playlist_id[0]) != utils.PLAYLIST_ID_LENGTH:
+            raise ValueError("Invalid playlist ID")
+        else: playlist_id = playlist_id[0]
+
+        if db.execute("SELECT playlist_id FROM playlists WHERE playlist_id == ?", (playlist_id,)).fetchone():
+            db.execute("DELETE FROM playlists WHERE playlist_id == ?", (playlist_id,))
+            db.commit()
+            print(f"{utils.Fore.GREEN}Successfully deleted playlist <{playlist_id}>{utils.Style.RESET_ALL}")
+        else: utils.Logger.error(msg=utils.err_format(f"Playlist not found", playlist_id, "sqlite3"))
 
 
 class Media:
