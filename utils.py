@@ -20,7 +20,7 @@ def err_format(msg, id="", process="youtube"):
 
 def step_format(position, length, started):
     measures = ["sec", "min", "hr"]
-    eta = (time.time() - started) * (length / position - 1)
+    eta = (time.perf_counter() - started) * (length / position - 1)
     if eta < 0: eta = 0
 
     measure = 0

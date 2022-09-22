@@ -149,7 +149,7 @@ class Archive:
             else:
                 print(utils.color("There are no thumbnails in the database.", "yellow"))
 
-
+    # https://www.youtube.com/playlist?list=PLJOKxKrh9kD2zNxOC1oYZxcLbwHA7v50J
     def playlist(self, path):
         if not path or not path[0]:
             raise ValueError("Missing path")
@@ -182,7 +182,7 @@ class Archive:
         )
 
         # Save videos
-        time_started = utils.time.time()
+        time_started = utils.time.perf_counter()
         for i, video in enumerate(playlist["Videos"]):
             utils.step_format(i+1, len(playlist["Videos"]), time_started)
             # remove spaces from video ID and parse timestamp
@@ -196,6 +196,7 @@ class Archive:
                 continue
 
         db.commit()
+        # TODO: print total time taken
         print(utils.color(f"Finished Archiving playlist <{playlist['Title']}> ({playlist['Playlist ID']})", "green", True))
 
 
