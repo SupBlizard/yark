@@ -18,7 +18,6 @@ def err_format(msg, id="", process="youtube"):
     if id: id = f"[{process}] {id}: "
     return f"{Fore.RED}ERROR: {Style.RESET_ALL}{id}{msg}"
 
-
 def step_format(position, length, started):
     measures = ["sec", "min", "hr"]
     eta = (time.time() - started) * (length / position - 1)
@@ -58,3 +57,12 @@ class Logger(object):
     def info(msg, vid="", process="youtube"):
         if vid: vid = f"[{process}] {vid}: "
         print(f"{Fore.CYAN}INFO: {Style.RESET_ALL}{vid}{msg}")
+
+
+def color(text, color="", bright=""):
+    try:
+        if color: color = getattr(Fore, color.upper())
+        if bright: bright = getattr(Style, "BRIGHT")
+    except AttributeError:
+        color, bright = ("","")
+    return f"{bright}{color}{text}{Style.RESET_ALL}"
