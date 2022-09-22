@@ -224,16 +224,7 @@ class Unarchive:
     def default(self):
         raise Exception(f"Missing method")
 
-    def __confirm(self, id):
-        thing = None
-        if len(id) == utils.VIDEO_ID_LENGTH:
-            thing = "video"
-        elif len(id) == utils.PLAYLIST_ID_LENGTH:
-            thing = "playlist"
-        else:
-            utils.Logger.error(msg=utils.err_format(f"Invalid id", id, "confirmation"))
-
-        print(f"Delete {thing} <{id}>? (THIS CANNOT BE REVERTED)")
+    def __confirm(self):
         doit = input("[yes / no]: ").lower()
 
         yes = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it", "why not", "please"]
@@ -246,38 +237,33 @@ class Unarchive:
             print("I'm assuming that's a no")
             return False
 
+    def __unarchive(self, thing, id):
+        # Figure out what it is
+        if thing == "video" and len(id) != utils.VIDEO_ID_LENGTH:
+            raise ValueError("Invalid video ID")
+        elif thing == "playlist" and len(id) != utils.PLAYLIST_ID_LENGTH:
+            raise ValueError("Invalid playlist ID")
+
+        if db.execute(f"SELECT {thing}_id FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone():
+            # Confirm user wants to delete the thing
+            print(f"Delete {thing} <{id}>? (THIS CANNOT BE REVERTED)")
+            if not self.__confirm(): return
+
+            db.execute(f"DELETE FROM {thing}s WHERE {thing}_id == ?", (id,))
+            db.commit()
+            print(f"{utils.Fore.GREEN}Successfully deleted {thing} <{id}>{utils.Style.RESET_ALL}")
+        else: utils.Logger.error(msg=utils.err_format(f"{thing.capitalize()} not found", id, "sqlite3"))
+
+
     def video(self, video_id):
         if not video_id or not video_id[0]:
             raise ValueError("Missing video ID")
-        elif len(video_id[0]) != utils.VIDEO_ID_LENGTH:
-            raise ValueError("Invalid video ID")
-        else: video_id = video_id[0]
-
-        if db.execute("SELECT video_id FROM videos WHERE video_id == ?", (video_id,)).fetchone():
-            # Confirm user wants to delete the video
-            if not self.__confirm(video_id): return
-
-            db.execute("DELETE FROM videos WHERE video_id == ?", (video_id,))
-            db.commit()
-            print(f"{utils.Fore.GREEN}Successfully deleted video <{video_id}>{utils.Style.RESET_ALL}")
-        else: utils.Logger.error(msg=utils.err_format(f"Video not found", video_id, "sqlite3"))
-
+        else: self.__unarchive("video", video_id[0])
 
     def playlist(self, playlist_id):
         if not playlist_id or not playlist_id[0]:
             raise ValueError("Missing playlist ID")
-        elif len(playlist_id[0]) != utils.PLAYLIST_ID_LENGTH:
-            raise ValueError("Invalid playlist ID")
-        else: playlist_id = playlist_id[0]
-
-        if db.execute("SELECT playlist_id FROM playlists WHERE playlist_id == ?", (playlist_id,)).fetchone():
-            # Confirm user wants to delete the playlist
-            if not self.__confirm(playlist_id): return
-
-            db.execute("DELETE FROM playlists WHERE playlist_id == ?", (playlist_id,))
-            db.commit()
-            print(f"{utils.Fore.GREEN}Successfully deleted playlist <{playlist_id}>{utils.Style.RESET_ALL}")
-        else: utils.Logger.error(msg=utils.err_format(f"Playlist not found", playlist_id, "sqlite3"))
+        else: self.__unarchive("playlist", playlist_id[0])
 
 
 class Media:
