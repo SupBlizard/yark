@@ -167,7 +167,7 @@ class Archive:
         except FileNotFoundError:
             raise FileNotFoundError("Playlist file not found")
         except csv.Error as e:
-            print("The CSV reader appears illiterate.", e)
+            raise csv.Error(f"The CSV reader appears illiterate: {e}")
 
         cur = db.cursor()
 
