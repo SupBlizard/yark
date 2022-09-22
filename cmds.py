@@ -4,9 +4,6 @@ from dateutil.parser import *
 import utils
 
 
-
-
-
 # Open the database
 try:
     db = sqlite3.connect("youtube.db")
@@ -37,14 +34,10 @@ def run(cmd_class, args):
     cmd = getattr(cmd_class, cmd, Exception(invalid_attr))
 
     if callable(cmd):
-        if cmd.__name__ != "default":
-            return cmd(args)
-        else:
-            raise Exception(invalid_attr)
-    elif type(cmd) == Exception:
-        raise cmd
-    else:
-        return cmd
+        if cmd.__name__ != "default": return cmd(args)
+        else: raise Exception(invalid_attr)
+    elif type(cmd) == Exception: raise cmd
+    else: return cmd
 
 
 # https://www.youtube.com/watch?v=qOgldkETcxk
@@ -64,6 +57,7 @@ class Archive:
                 utils.Logger.info("Video already archived, skipping.", video_id)
                 return
 
+            # Re-attempt to archive if a video is lost
             utils.Logger.info("Video previously archived but lost, attempting recovery", video_id)
 
         # Extract video info
@@ -73,20 +67,17 @@ class Archive:
             db.commit()
             return
 
+        # If youtube decides to add new categories
+        cur.execute("INSERT OR IGNORE INTO categories VALUES(?)", (v.get("category"),))
+        # Insert user and channel
         cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (v.get("uploader_id"), v.get("uploader")))
         cur.execute("INSERT OR IGNORE INTO channels VALUES(?,?,?,?,?)", (
             v.get("channel_id"), v.get("uploader_id"), (v.get("channel") or v.get("uploader")),
             v.get("channel_follower_count"), v.get("channel_url")
         ))
 
-        if v.get("category"):
-            cur.execute("INSERT OR IGNORE INTO categories VALUES(?)", (v.get("category"),))
-
-        # Commit new rows
-        db.commit()
-
-        # Add video
         try:
+            # Add video
             cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
                 v["id"], v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
                 v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
@@ -147,16 +138,16 @@ class Archive:
             for video in db.execute("SELECT video_id, thumbnail, thumbnail_url FROM videos").fetchall():
                 if not video[1]: continue
                 thumbnail_path = f"thumbnails/{video[0]}.{video[2].split('.')[-1]}"
-                if os.path.exists(thumbnail_path): continue
 
+                if os.path.exists(thumbnail_path): continue
                 with open(thumbnail_path, "wb") as thumb_file:
                     thumb_file.write(video[1])
                     dumped += 1
 
             if dumped != 0:
-                print("Thumbnails successfully dumped!")
+                print(utils.color("Thumbnails successfully dumped!", "green", True))
             else:
-                print("There are no thumbnails in the database.")
+                print(utils.color("There are no thumbnails in the database.", "yellow"))
 
 
     def playlist(self, path):
@@ -194,25 +185,22 @@ class Archive:
         time_started = utils.time.time()
         for i, video in enumerate(playlist["Videos"]):
             utils.step_format(i+1, len(playlist["Videos"]), time_started)
-            # remove spaces
+            # remove spaces from video ID and parse timestamp
             video = [video[0].replace(" ", ""), parse(video[1]).timestamp()]
             try:
                 self.video([video[0]])
                 cur.execute("INSERT INTO playlist_videos(playlist, video, added) VALUES(?,?,?)", (
-                    playlist["Playlist ID"], video[0], video[1]
-                ))
-
+                    playlist["Playlist ID"], video[0], video[1]))
             except sqlite3.IntegrityError as e:
                 utils.Logger.error(msg=utils.err_format(f"Integrity Error: {e}", video[0], "sqlite3"))
                 continue
 
-
         db.commit()
-        print(f"{utils.Fore.GREEN}Finished Archiving playlist <{playlist['Title']}> ({playlist['Playlist ID']}){utils.Style.RESET_ALL}")
-
+        print(utils.color(f"Finished Archiving playlist <{playlist['Title']}> ({playlist['Playlist ID']})", "green", True))
 
 
     def history(self, args):
+        # TODO
         pass
 
 
@@ -231,14 +219,15 @@ class Unarchive:
         elif thing == "playlist" and len(id) != utils.PLAYLIST_ID_LENGTH:
             raise ValueError("Invalid playlist ID")
 
-        if db.execute(f"SELECT {thing}_id FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone():
+        if title := db.execute(f"SELECT title FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone():
             # Confirm user wants to delete the thing
-            print(f"Delete {thing} <{id}>? (THIS CANNOT BE REVERTED)")
+            print(f"Delete {thing} <{title[0]}> ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
             if not utils.user_confirm(): return
+            print()
 
             db.execute(f"DELETE FROM {thing}s WHERE {thing}_id == ?", (id,))
             db.commit()
-            print(f"{utils.Fore.GREEN}Successfully deleted {thing} <{id}>{utils.Style.RESET_ALL}")
+            print(utils.color(f"Successfully deleted {thing} <{id}>", "green", True))
         else: utils.Logger.error(msg=utils.err_format(f"{thing.capitalize()} not found", id, "sqlite3"))
 
 
@@ -284,7 +273,7 @@ class Media:
                     except yt_dlp.utils.DownloadError as e:
                         attempts -= 1
                         if attempts < 1:
-                            print(utils.err_format("Failed recovering video"))
+                            utils.Logger.info(msg=utils.err_format("Failed recovering video", video_id))
                             return
                         utils.Logger.info(f"Retrying, {attempts} left", video_id)
                     utils.time.sleep(2)
@@ -292,17 +281,14 @@ class Media:
 
 
         if info["extractor"] == "youtube" or info["extractor"] == "web.archive:youtube":
-            info["thumbnail_url"] = info["thumbnail"].split("?")[0]
-            info["thumbnail"] = None
-
             # Download thumbnail
+            info["thumbnail_url"] = info["thumbnail"].split("?")[0]
             if config["thumbnails"]:
                 utils.Logger.info(f"Downloading video thumbnail", video_id)
                 try:
                     thumbnail = requests.get(info["thumbnail_url"])
                     thumbnail.raise_for_status()
-                    info["thumbnail"] = thumbnail.content
-                    if not info["thumbnail"]: raise
+                    if not thumbnail.content: raise
                 except requests.RequestException:
                     utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", video_id, "requests"))
 
@@ -328,14 +314,14 @@ class Media:
             info["views"] = (ryd.get("viewCount") or info.get("view_count"))
             info["rating"] = ryd.get("rating")
 
+            info["thumbnail"] = (thumbnail.content or None)
             info["comments"] = info.get("comments")
             info["channel_follower_count"] = info.get("channel_follower_count")
         else:
             utils.Logger.error(msg=err_format("Invalid extractor", id=video_id, process="get_info"))
             return
 
-        if not simulate:
-            return info
+        if not simulate: return info
 
 
     def print_info(self, video_id):

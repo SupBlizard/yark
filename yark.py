@@ -1,7 +1,7 @@
-import sys, cmds, colorama
+import sys, cmds
 
 def main():
-    print(f"{colorama.Fore.RED} [ YARK ] {colorama.Style.RESET_ALL}\n")
+    print(cmds.utils.color(f"[ YARK ]\n", "red"))
 
     while True:
         try:
@@ -26,15 +26,15 @@ def main():
             # Run command and print return value
             if rtn := cmds.run(cmd(), args):
                 print(rtn)
-            print()
+            else: print()
 
         except Exception as e:
-            print(f"{colorama.Fore.RED}{e}{colorama.Style.RESET_ALL}\n")
+            print(cmds.utils.color(e, "red"))
         except KeyboardInterrupt:
             print()
             break
 
-
+    # Close database
     cmds.db.close()
 
 

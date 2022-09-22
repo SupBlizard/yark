@@ -10,13 +10,13 @@ YOUTUBE = "https://www.youtube.com/"
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 DELETE = "\033[K\033[A"*2
 
-YES = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it"]
+YES = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it", "why not"]
 MAYBE = ["maybe", "perhaps", "possibly", "conceivably", "probably"]
 NO = ["no", "n", "nah", "nou", "dont", "don't"]
 
 def err_format(msg, id="", process="youtube"):
     if id: id = f"[{process}] {id}: "
-    return f"{Fore.RED}ERROR: {Style.RESET_ALL}{id}{msg}"
+    return f"{color('ERROR:', 'red')} {id}{msg}"
 
 def step_format(position, length, started):
     measures = ["sec", "min", "hr"]
@@ -31,10 +31,10 @@ def step_format(position, length, started):
     eta = round(eta, 1)
     if eta % 1 == 0: eta = int(eta)
 
-    print(f"\n{Fore.CYAN}[{position} / {length}]{Style.RESET_ALL} ETA: {eta} {measures[measure]}")
+    print(f"\n{color(f'[{position} / {length}]', 'cyan')} ETA: {eta} {measures[measure]}")
 
 def user_confirm():
-    doit = input("[yes or no]: ").lower()
+    doit = input(f"{color('[', 'red')}{color('confirm', 'red', True)}{color(']:', 'red')} ").lower()
     if doit in YES: return True
     elif doit in MAYBE: print("I'll let you think about it.")
     elif doit in NO: pass
@@ -48,6 +48,7 @@ class Logger(object):
 
     def warning(self, msg):
         # TODO: Save event in debug log
+        print(msg)
         pass
 
     def error(self=None, msg=None):
@@ -56,7 +57,7 @@ class Logger(object):
 
     def info(msg, vid="", process="youtube"):
         if vid: vid = f"[{process}] {vid}: "
-        print(f"{Fore.CYAN}INFO: {Style.RESET_ALL}{vid}{msg}")
+        print(f"{color('INFO:', 'cyan')} {vid}{msg}")
 
 
 def color(text, color="", bright=""):
