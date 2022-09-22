@@ -10,6 +10,10 @@ YOUTUBE = "https://www.youtube.com/"
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 DELETE = "\033[K\033[A"*2
 
+YES = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it"]
+MAYBE = ["maybe", "perhaps", "possibly", "conceivably", "probably"]
+NO = ["no", "n", "nah", "nou", "dont", "don't"]
+
 def err_format(msg, id="", process="youtube"):
     if id: id = f"[{process}] {id}: "
     return f"{Fore.RED}ERROR: {Style.RESET_ALL}{id}{msg}"
@@ -29,6 +33,14 @@ def step_format(position, length, started):
     if eta % 1 == 0: eta = int(eta)
 
     print(f"\n{Fore.CYAN}[{position} / {length}]{Style.RESET_ALL} ETA: {eta} {measures[measure]}")
+
+def user_confirm():
+    doit = input("[yes or no]: ").lower()
+    if doit in YES: return True
+    elif doit in MAYBE: print("I'll let you think about it.")
+    elif doit in NO: pass
+    else: "What ?"
+    return False
 
 # Custom logger
 class Logger(object):

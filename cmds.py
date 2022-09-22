@@ -224,19 +224,6 @@ class Unarchive:
     def default(self):
         raise Exception(f"Missing method")
 
-    def __confirm(self):
-        doit = input("[yes / no]: ").lower()
-
-        yes = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it", "why not", "please"]
-        no = ["no", "n", "nah", "nou", "dont", "don't", "fine", "not today", ""]
-        if doit in yes:
-            return True
-        elif doit in no:
-            return False
-        else:
-            print("I'm assuming that's a no")
-            return False
-
     def __unarchive(self, thing, id):
         # Figure out what it is
         if thing == "video" and len(id) != utils.VIDEO_ID_LENGTH:
@@ -247,7 +234,7 @@ class Unarchive:
         if db.execute(f"SELECT {thing}_id FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone():
             # Confirm user wants to delete the thing
             print(f"Delete {thing} <{id}>? (THIS CANNOT BE REVERTED)")
-            if not self.__confirm(): return
+            if not utils.user_confirm(): return
 
             db.execute(f"DELETE FROM {thing}s WHERE {thing}_id == ?", (id,))
             db.commit()
