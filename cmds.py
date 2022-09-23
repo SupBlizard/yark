@@ -14,26 +14,25 @@ except FileNotFoundError as e:
 
 
 # Read configuration or write defaults
-CONFIGS_DEFAULT = {"thumbnails": True, "comments": True}
 with open("configs.json", "a+") as config_file:
     try:
         config_file.seek(0)
         configs = json.loads(config_file.read())
-        if configs.keys() != CONFIGS_DEFAULT.keys():
+        if configs.keys() != utils.CONFIGS_DEFAULT.keys():
             raise json.JSONDecodeError("Invalid keys")
 
-        for key in CONFIGS_DEFAULT:
-            if not isinstance(configs[key], type(CONFIGS_DEFAULT[key])):
+        for key in utils.CONFIGS_DEFAULT:
+            if not isinstance(configs[key], type(utils.CONFIGS_DEFAULT[key])):
                 raise ValueError(f"Invalid value datatype for {key}")
 
     except (json.JSONDecodeError, ValueError) as e:
         configs = None
 
     if not configs:
-        configs = CONFIGS_DEFAULT
+        configs = utils.CONFIGS_DEFAULT
         config_file.seek(0)
         config_file.truncate()
-        config_file.write(json.dumps(CONFIGS_DEFAULT))
+        config_file.write(json.dumps(utils.CONFIGS_DEFAULT))
 
 
 options = {
@@ -44,8 +43,7 @@ options = {
 
 # Global run command
 def run(cmd_class, args):
-    if not args:
-        return cmd_class.default()
+    if not args: return cmd_class.default()
 
     cmd = args.pop(0).lower()
     invalid_attr = f'Invalid attribute "{cmd}"'
@@ -146,6 +144,7 @@ class Archive:
     def dump(self, args):
         if not args: raise TypeError("Dump what ?")
         if args[0].lower() == "thumbnails":
+            # Create thumbnails folder
             if not os.path.exists("thumbnails"):
                 os.mkdir("thumbnails")
 
@@ -166,19 +165,17 @@ class Archive:
 
     # https://www.youtube.com/playlist?list=PLJOKxKrh9kD2zNxOC1oYZxcLbwHA7v50J
     def playlist(self, path):
-        if not path:
-            raise ValueError("Missing path")
-        else: path = " ".join(path)
+        if not path: raise ValueError("Missing path")
 
         try:
-            with open(path, "rt", newline="") as pl_file:
+            with open(" ".join(path), "rt", newline="") as pl_file:
                 playlist = list(csv.DictReader(pl_file, delimiter=','))[0]
                 # Reset file stream position
                 pl_file.seek(0)
 
                 playlist["Videos"] = list(csv.reader(pl_file, delimiter=','))[4:-1]
-            if len(playlist.get("Playlist ID")) != utils.PLAYLIST_ID_LENGTH:
-                raise ValueError("Invalid playlist ID")
+            # Validate playlist ID
+            utils.is_("playlist", playlist.get("Playlist ID"))
         except FileNotFoundError:
             raise FileNotFoundError("Playlist file not found")
         except csv.Error as e:
@@ -229,11 +226,8 @@ class Unarchive:
         raise Exception(f"Missing method")
 
     def __unarchive(self, thing, id):
-        # Figure out what it is
-        if thing == "video" and len(id) != utils.VIDEO_ID_LENGTH:
-            raise ValueError("Invalid video ID")
-        elif thing == "playlist" and len(id) != utils.PLAYLIST_ID_LENGTH:
-            raise ValueError("Invalid playlist ID")
+        # Validate ID
+        utils.is_(thing, id)
 
         if title := db.execute(f"SELECT title FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone():
             # Confirm user wants to delete the thing
@@ -248,13 +242,11 @@ class Unarchive:
 
 
     def video(self, video_id):
-        if not video_id:
-            raise ValueError("Missing video ID")
+        if not video_id: raise ValueError("Missing video ID")
         else: self.__unarchive("video", video_id[0])
 
     def playlist(self, playlist_id):
-        if not playlist_id:
-            raise ValueError("Missing playlist ID")
+        if not playlist_id: raise ValueError("Missing playlist ID")
         else: self.__unarchive("playlist", playlist_id[0])
 
 
@@ -266,14 +258,10 @@ class Media:
         raise Exception(f"Missing method")
 
     def get_info(self, video_id, simulate=True):
-        if not video_id:
-            raise ValueError("Missing video ID")
-        elif len(video_id[0]) != utils.VIDEO_ID_LENGTH:
-            raise ValueError("Invalid video ID")
-        else: video_id = video_id[0]
+        video_id = utils.is_("video", video_id[0])
 
         utils.Logger.info("Extracting data", video_id)
-        with yt_dlp.YoutubeDL({"getcomments":config["comments"]} | options) as ydlp:
+        with yt_dlp.YoutubeDL({"getcomments":configs["comments"]} | options) as ydlp:
             try:
                 info = ydlp.extract_info(video_id, download=False)
             except yt_dlp.utils.DownloadError as e:
@@ -295,11 +283,10 @@ class Media:
                     utils.time.sleep(2)
 
 
-
         if info["extractor"] == "youtube" or info["extractor"] == "web.archive:youtube":
             # Download thumbnail
             info["thumbnail_url"] = info["thumbnail"].split("?")[0]
-            if config["thumbnails"]:
+            if configs["thumbnails"]:
                 utils.Logger.info(f"Downloading video thumbnail", video_id)
                 try:
                     thumbnail = requests.get(info["thumbnail_url"])
