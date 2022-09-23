@@ -1,18 +1,39 @@
-import time
+import time, re
 from colorama import Style, Fore, Back
 
 # CONSTANTS
-VIDEO_ID_LENGTH = 11
-PLAYLIST_ID_LENGTH = 34
 RYD_API = "https://returnyoutubedislikeapi.com/"
 WAYBACK = "https://web.archive.org/web/"
 YOUTUBE = "https://www.youtube.com/"
+CONFIGS_DEFAULT = {"thumbnails": True, "comments": True}
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 DELETE = "\033[K\033[A"*2
+
+ID_LENGTH = {
+    "video": 11,
+    "playlist": 34
+}
 
 YES = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it", "why not"]
 MAYBE = ["maybe", "perhaps", "possibly", "conceivably", "probably"]
 NO = ["no", "n", "nah", "nou", "dont", "don't"]
+
+
+def is_(thing, id):
+    if not id: raise ValueError("Missing ID")
+    length = ID_LENGTH[thing]
+
+    if len(id) == length:
+        chars = "[0-9A-Za-z_-]"
+        start = ""
+        if thing == "playlist":
+            start = "^PL"
+            length -= 2
+        expression = re.search(f"{start}{chars}{{{length}}}", id)
+        if expression: return expression.group()
+    raise ValueError(f"Invalid {thing} ID")
+
+
 
 def err_format(msg, id="", process="youtube"):
     if id: id = f"[{process}] {id}: "
@@ -38,7 +59,7 @@ def user_confirm():
     if doit in YES: return True
     elif doit in MAYBE: print("I'll let you think about it.")
     elif doit in NO: pass
-    else: "What ?"
+    else: print("What ?")
     return False
 
 # Custom logger
