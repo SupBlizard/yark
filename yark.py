@@ -21,7 +21,7 @@ def main():
                 cmd = getattr(cmds, cmd)
                 if type(cmd) != type: raise TypeError
             except (AttributeError, TypeError):
-                raise Exception(f"Command {cmd} does not exist.")
+                raise Exception(f"Command {cmd} does not exist.\n")
 
             # Run command and print return value
             if rtn := cmds.run(cmd(), args):
@@ -29,7 +29,7 @@ def main():
             else: print()
 
         except Exception as e:
-            print(cmds.utils.color(e, "red"))
+            print(cmds.utils.color(e, "red"), end="\n\n")
         except KeyboardInterrupt:
             print()
             break
