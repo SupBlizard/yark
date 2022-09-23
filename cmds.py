@@ -23,12 +23,10 @@ with open("configs.json", "a+") as config_file:
             raise json.JSONDecodeError("Invalid keys")
 
         for key in CONFIGS_DEFAULT:
-            print(configs[key], CONFIGS_DEFAULT[key])
             if not isinstance(configs[key], type(CONFIGS_DEFAULT[key])):
                 raise ValueError(f"Invalid value datatype for {key}")
 
     except (json.JSONDecodeError, ValueError) as e:
-        print(e)
         configs = None
 
     if not configs:
@@ -352,3 +350,31 @@ class Media:
         print(f"{info['uploader']} | {info['channel_follower_count']} subscribers")
         print("-----------------------------------------------------------------")
         print(info["description"])
+
+
+
+class Config:
+    def __init__(self):
+        self.help = "TODO"
+
+    def default(self):
+        print(f"Your configuration: {configs}")
+
+    def get(self, args):
+        if not args: raise ValueError("Get what ?")
+        if len(args) < 2: raise ValueError("True or False ?")
+
+        if args[0] not in configs:
+            raise ValueError(f"Configuration {args[0]} does not exist")
+
+        state = args[1]
+        if state == "true":
+            configs[args[0]] = True
+            utils.Logger.info(f"Get {args[0]} set to <True>")
+        elif state == "false":
+            configs[args[0]] = False
+            utils.Logger.info(f"Get {args[0]} set to <False>")
+        else: raise ValueError("True or false ?")
+
+        with open("configs.json", "w") as config_file:
+            config_file.write(json.dumps(configs))
