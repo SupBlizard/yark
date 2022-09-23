@@ -1,8 +1,10 @@
 __pycache__
 dataset
 thumbnails
+configs.json
 .venv
 *.exe
 *.bat
 *.db
 *.db-journal
+

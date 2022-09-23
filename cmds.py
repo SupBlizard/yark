@@ -4,8 +4,8 @@ from dateutil.parser import *
 import utils
 
 
-# Open the database
 try:
+    # Open the database
     db = sqlite3.connect("youtube.db")
     with open("schema.sql", "r") as schema:
         db.executescript(schema.read())
@@ -13,14 +13,34 @@ except FileNotFoundError as e:
     print("Database schema not found.")
 
 
+# Read configuration or write defaults
+CONFIGS_DEFAULT = {"thumbnails": True, "comments": True}
+with open("configs.json", "a+") as config_file:
+    try:
+        config_file.seek(0)
+        configs = json.loads(config_file.read())
+        if configs.keys() != CONFIGS_DEFAULT.keys():
+            raise json.JSONDecodeError("Invalid keys")
+
+        for key in CONFIGS_DEFAULT:
+            print(configs[key], CONFIGS_DEFAULT[key])
+            if not isinstance(configs[key], type(CONFIGS_DEFAULT[key])):
+                raise ValueError(f"Invalid value datatype for {key}")
+
+    except (json.JSONDecodeError, ValueError) as e:
+        print(e)
+        configs = None
+
+    if not configs:
+        configs = CONFIGS_DEFAULT
+        config_file.seek(0)
+        config_file.truncate()
+        config_file.write(json.dumps(CONFIGS_DEFAULT))
+
+
 options = {
     "quiet": True,
     "logger": utils.Logger()
-}
-
-config = {
-    "thumbnails": True,
-    "comments": False
 }
 
 
@@ -49,8 +69,7 @@ class Archive:
         raise Exception(f"Missing method")
 
     def video(self, video_id):
-        video_id = video_id[0]
-        cur = db.cursor()
+        video_id, cur = video_id[0], db.cursor()
         exists = cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone()
         if exists:
             if exists[1] != "lost":
@@ -127,9 +146,7 @@ class Archive:
 
 
     def dump(self, args):
-        if len(args) < 1 or not args[0]:
-            raise TypeError("Dump what ?")
-
+        if not args: raise TypeError("Dump what ?")
         if args[0].lower() == "thumbnails":
             if not os.path.exists("thumbnails"):
                 os.mkdir("thumbnails")
@@ -151,7 +168,7 @@ class Archive:
 
     # https://www.youtube.com/playlist?list=PLJOKxKrh9kD2zNxOC1oYZxcLbwHA7v50J
     def playlist(self, path):
-        if not path or not path[0]:
+        if not path:
             raise ValueError("Missing path")
         else: path = " ".join(path)
 
@@ -233,12 +250,12 @@ class Unarchive:
 
 
     def video(self, video_id):
-        if not video_id or not video_id[0]:
+        if not video_id:
             raise ValueError("Missing video ID")
         else: self.__unarchive("video", video_id[0])
 
     def playlist(self, playlist_id):
-        if not playlist_id or not playlist_id[0]:
+        if not playlist_id:
             raise ValueError("Missing playlist ID")
         else: self.__unarchive("playlist", playlist_id[0])
 
@@ -251,7 +268,7 @@ class Media:
         raise Exception(f"Missing method")
 
     def get_info(self, video_id, simulate=True):
-        if not video_id or not video_id[0]:
+        if not video_id:
             raise ValueError("Missing video ID")
         elif len(video_id[0]) != utils.VIDEO_ID_LENGTH:
             raise ValueError("Invalid video ID")
