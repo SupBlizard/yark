@@ -64,10 +64,35 @@ class Archive:
     def default(self):
         raise Exception(f"Missing method")
 
+    def __get_video(self, id):
+        # Validate id
+        utils.is_("video", id)
+
+        utils.Logger.info("Extracting data", id)
+        with yt_dlp.YoutubeDL({"getcomments":configs["comments"]} | options) as ydlp:
+            try:
+                info = ydlp.extract_info(id, download=False)
+            except yt_dlp.utils.DownloadError as e:
+                utils.Logger.info("Searching the Wayback machine", id)
+            finally: return info
+
+        for i in range(3):
+            try:
+                # Attempt to get video from the wayback machine
+                info = ydlp.extract_info(f"{utils.WAYBACK}{utils.YOUTUBE}watch?v={id}", download=False)
+                info["availability"] = "recovered"
+                return info
+            except yt_dlp.utils.DownloadError as e:
+                utils.Logger.info(f"Retrying, {attempts} left", id)
+                utils.time.sleep(2)
+
+        info["availability"] = "lost"
+        utils.Logger.info(msg=utils.err_format("Failed recovering video", id))
+
+
     def video(self, video_id):
         video_id, cur = video_id[0], db.cursor()
-        exists = cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone()
-        if exists:
+        if exists := cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone():
             if exists[1] != "lost":
                 utils.Logger.info("Video already archived, skipping.", video_id)
                 return
@@ -76,7 +101,9 @@ class Archive:
             utils.Logger.info("Video previously archived but lost, attempting recovery", video_id)
 
         # Extract video info
-        v = Media.get_info(self, [video_id], simulate=False)
+        v = self.__get_metadata(video_id)
+        print(v)
+        return
         if not v:
             cur.execute("INSERT OR IGNORE INTO videos (video_id, availability) VALUES (?,?)", (video_id,"lost"))
             db.commit()
@@ -212,6 +239,18 @@ class Archive:
         print(utils.color(f"Finished Archiving playlist <{playlist['Title']}> ({playlist['Playlist ID']})", "green", True))
 
 
+    def playlist_from_url(self, url):
+        if not url: raise ValueError("Missing url")
+        url = url[0]
+        with yt_dlp.YoutubeDL() as ydlp:
+            info = ydlp.extract_info(url, download=False)
+
+        # Playlist ID, Channel ID, Time Created, Time Updated, Title, Description, Visibility
+        print(info["id"], info["channel_id"], info["epoch"], info["modified_date"],
+            info["title"], info["description"], info["availability"])
+
+        print(list(info["entries"][0]))
+
     def history(self, args):
         # TODO
         pass
@@ -257,74 +296,42 @@ class Media:
     def default(self):
         raise Exception(f"Missing method")
 
-    def get_info(self, video_id, simulate=True):
-        video_id = utils.is_("video", video_id[0])
-
-        utils.Logger.info("Extracting data", video_id)
-        with yt_dlp.YoutubeDL({"getcomments":configs["comments"]} | options) as ydlp:
+    def __refine_video_data(self, info):
+        # Download thumbnail
+        info["thumbnail_url"] = info.get("thumbnail").split("?")[0]
+        if configs["thumbnails"]:
+            utils.Logger.info(f"Downloading video thumbnail", video_id)
             try:
-                info = ydlp.extract_info(video_id, download=False)
-            except yt_dlp.utils.DownloadError as e:
-                # Attempt to get video from the wayback machine
-                utils.Logger.info("Searching the Wayback machine", video_id)
+                thumbnail = requests.get(info["thumbnail_url"])
+                thumbnail.raise_for_status()
+                if not thumbnail.content: raise
+            except requests.RequestException:
+                utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", video_id, "requests"))
 
-                attempts = 3
-                while True:
-                    try:
-                        info = ydlp.extract_info(f"{utils.WAYBACK}{utils.YOUTUBE}watch?v={video_id}", download=False)
-                        info["availability"] = "recovered"
-                        break
-                    except yt_dlp.utils.DownloadError as e:
-                        attempts -= 1
-                        if attempts < 1:
-                            utils.Logger.info(msg=utils.err_format("Failed recovering video", video_id))
-                            return
-                        utils.Logger.info(f"Retrying, {attempts} left", video_id)
-                    utils.time.sleep(2)
+        try:
+            # Get video rating
+            ryd = requests.get(f"{utils.RYD_API}Votes?videoId={video_id}", timeout=0.2).json()
+            if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
+        except requests.RequestException as e:
+            utils.Logger.error(msg=utils.err_format(e, video_id, "requests"))
+            ryd = {}
 
-
-        if info["extractor"] == "youtube" or info["extractor"] == "web.archive:youtube":
-            # Download thumbnail
-            info["thumbnail_url"] = info["thumbnail"].split("?")[0]
-            if configs["thumbnails"]:
-                utils.Logger.info(f"Downloading video thumbnail", video_id)
-                try:
-                    thumbnail = requests.get(info["thumbnail_url"])
-                    thumbnail.raise_for_status()
-                    if not thumbnail.content: raise
-                except requests.RequestException:
-                    utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", video_id, "requests"))
-
-            try:
-                # Get video rating
-                ryd = requests.get(f"{utils.RYD_API}Votes?videoId={video_id}", timeout=0.2).json()
-                if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
-            except requests.RequestException as e:
-                utils.Logger.error(msg=utils.err_format(e, video_id, "requests"))
-                ryd = {}
-
-            if info.get("description") == utils.DEFAULT_DESC: info["description"] = ""
-            info["age_limit"] = (info.get("age_limit") or None)
-            info["live_status"] = (info.get("live_status") or None)
-            info["fps"] = (info.get("fps") or None)
-            info["audio_channels"] = (info.get("audio_channels") or None)
-            info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
-            info["upload_date"] = parse(info["upload_date"]) if info.get("upload_date") else None
-            info["category"] = info["categories"][0] if info.get("categories") else None
-
-            info["likes"] = (ryd.get("likes") or info.get("like_count"))
-            info["dislikes"] = ryd.get("dislikes")
-            info["views"] = (ryd.get("viewCount") or info.get("view_count"))
-            info["rating"] = ryd.get("rating")
-
-            info["thumbnail"] = (thumbnail.content or None)
-            info["comments"] = info.get("comments")
-            info["channel_follower_count"] = info.get("channel_follower_count")
-        else:
-            utils.Logger.error(msg=err_format("Invalid extractor", id=video_id, process="get_info"))
-            return
-
-        if not simulate: return info
+        if info.get("description") == utils.DEFAULT_DESC: info["description"] = ""
+        info["age_limit"] = (info.get("age_limit") or None)
+        info["live_status"] = (info.get("live_status") or None)
+        info["fps"] = (info.get("fps") or None)
+        info["audio_channels"] = (info.get("audio_channels") or None)
+        info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
+        info["upload_date"] = parse(info["upload_date"]) if info.get("upload_date") else None
+        info["category"] = info["categories"][0] if info.get("categories") else None
+        info["likes"] = (ryd.get("likes") or info.get("like_count"))
+        info["dislikes"] = ryd.get("dislikes")
+        info["views"] = (ryd.get("viewCount") or info.get("view_count"))
+        info["rating"] = ryd.get("rating")
+        info["thumbnail"] = (thumbnail.content or None)
+        info["comments"] = info.get("comments")
+        info["channel_follower_count"] = info.get("channel_follower_count")
+        return info
 
 
     def print_info(self, video_id):
