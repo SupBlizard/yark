@@ -65,7 +65,6 @@ class Archive:
         raise Exception(f"Missing method")
 
     def __get_video(self, id):
-        # Validate id
         utils.is_("video", id)
 
         utils.Logger.info("Extracting data", id)
@@ -74,7 +73,7 @@ class Archive:
                 info = ydlp.extract_info(id, download=False)
             except yt_dlp.utils.DownloadError as e:
                 utils.Logger.info("Searching the Wayback machine", id)
-            finally: return info
+            else: return info
 
         for i in range(3):
             try:
@@ -86,9 +85,45 @@ class Archive:
                 utils.Logger.info(f"Retrying, {attempts} left", id)
                 utils.time.sleep(2)
 
-        info["availability"] = "lost"
         utils.Logger.info(msg=utils.err_format("Failed recovering video", id))
 
+
+    def __refine_metadata(self, info):
+        # Download thumbnail
+        info["thumbnail_url"] = info.get("thumbnail").split("?")[0]
+        if configs["thumbnails"]:
+            utils.Logger.info(f"Downloading video thumbnail", info["id"])
+            try:
+                thumbnail = requests.get(info["thumbnail_url"])
+                thumbnail.raise_for_status()
+                if not thumbnail.content: raise
+            except requests.RequestException:
+                utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", info["id"], "requests"))
+                info["thumbnail"] = None
+
+        try:
+            # Get video rating
+            ryd = requests.get(f"{utils.RYD_API}Votes?videoId={info['id']}", timeout=0.2).json()
+            if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
+        except requests.RequestException as e:
+            utils.Logger.error(msg=utils.err_format(e, info["id"], "requests"))
+            ryd = {}
+
+        if info.get("description") == utils.DEFAULT_DESC: info["description"] = ""
+        info["age_limit"] = (info.get("age_limit") or None)
+        info["live_status"] = (info.get("live_status") or None)
+        info["fps"] = (info.get("fps") or None)
+        info["audio_channels"] = (info.get("audio_channels") or None)
+        info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
+        info["upload_date"] = parse(info["upload_date"]) if info.get("upload_date") else None
+        info["category"] = info["categories"][0] if info.get("categories") else None
+        info["likes"] = (ryd.get("likes") or info.get("like_count"))
+        info["dislikes"] = ryd.get("dislikes")
+        info["views"] = (ryd.get("viewCount") or info.get("view_count"))
+        info["rating"] = ryd.get("rating")
+        info["comments"] = info.get("comments")
+        info["channel_follower_count"] = info.get("channel_follower_count")
+        return info
 
     def video(self, video_id):
         video_id, cur = video_id[0], db.cursor()
@@ -101,17 +136,17 @@ class Archive:
             utils.Logger.info("Video previously archived but lost, attempting recovery", video_id)
 
         # Extract video info
-        v = self.__get_metadata(video_id)
-        print(v)
-        return
+        v = self.__get_video(video_id)
         if not v:
             cur.execute("INSERT OR IGNORE INTO videos (video_id, availability) VALUES (?,?)", (video_id,"lost"))
             db.commit()
             return
 
-        # If youtube decides to add new categories
+        # Prepare metadata for archival
+        v = self.__refine_metadata(v)
+
+        # Attempt to insert user, channel and category (if youtube decides to add new ones)
         cur.execute("INSERT OR IGNORE INTO categories VALUES(?)", (v.get("category"),))
-        # Insert user and channel
         cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (v.get("uploader_id"), v.get("uploader")))
         cur.execute("INSERT OR IGNORE INTO channels VALUES(?,?,?,?,?)", (
             v.get("channel_id"), v.get("uploader_id"), (v.get("channel") or v.get("uploader")),
@@ -129,6 +164,7 @@ class Archive:
         except sqlite3.IntegrityError as e:
             utils.Logger.error(msg=utils.err_format(f"Integrity Error: {e}", video_id, "sqlite3"))
             # Update video info
+            # TODO: PUT THIS GARBAGE IN THE UPDATE METHOD WHEN ITS DONE
             cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
                 thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
                 dislikes = ?, rating = ?, upload_timestamp = ?, availability = ?, width = ?, height = ?,
@@ -140,32 +176,32 @@ class Archive:
             ))
 
         # Add comments
-        if v.get("comments"):
-            for c in v.get("comments"):
-                # Check if user is in the database
-                if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (c["author_id"],)).fetchone():
-                    cur.execute("INSERT INTO users VALUES(?,?)", (c["author_id"], c["author"]))
+        for c in v.get("comments") or []:
+            # Check if user is in the database
+            if not cur.execute("SELECT 1 FROM users WHERE user_id == ?", (c["author_id"],)).fetchone():
+                cur.execute("INSERT INTO users VALUES(?,?)", (c["author_id"], c["author"]))
 
-                if c["parent"] == "root": c["parent"] = None
-                cur.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?)", (
-                    c["id"], v["id"], c["author_id"], c["text"], c["like_count"],
-                    c["is_favorited"], c["author_is_uploader"], c["parent"], c["timestamp"]
-                ))
+            if c["parent"] == "root": c["parent"] = None
+            cur.execute("INSERT INTO comments VALUES (?,?,?,?,?,?,?,?,?)", (
+                c["id"], v["id"], c["author_id"], c["text"], c["like_count"],
+                c["is_favorited"], c["author_is_uploader"], c["parent"], c["timestamp"]
+            ))
 
         # Add video tags
-        if v.get("tags"):
-            for tag in v.get("tags"):
-                cur.execute("INSERT OR IGNORE INTO tags VALUES(?)", (tag,))
-                cur.execute("INSERT OR IGNORE INTO video_tags(video, tag) VALUES(?,?)", (video_id, tag))
+        for tag in v.get("tags") or []:
+            cur.execute("INSERT OR IGNORE INTO tags VALUES(?)", (tag,))
+            cur.execute("INSERT OR IGNORE INTO video_tags(video, tag) VALUES(?,?)", (video_id, tag))
 
         # Commit new video
         db.commit()
+
+        # Print video archival status
         if exists and exists[1] == "lost":
-            utils.Logger.info("Lost video somehow recovered!", video_id)
+            msg = "Lost video somehow recovered!"
         elif v.get("availability") == "recovered":
-            utils.Logger.info("Video successfully recovered and archived", video_id)
-        else:
-            utils.Logger.info("Video successfully archived", video_id)
+            msg = "Video successfully recovered and archived"
+        else: msg = "Video successfully archived"
+        utils.Logger.info(msg, video_id)
 
 
     def dump(self, args):
@@ -287,64 +323,6 @@ class Unarchive:
     def playlist(self, playlist_id):
         if not playlist_id: raise ValueError("Missing playlist ID")
         else: self.__unarchive("playlist", playlist_id[0])
-
-
-class Media:
-    def __init__(self):
-        self.help = "TODO"
-
-    def default(self):
-        raise Exception(f"Missing method")
-
-    def __refine_video_data(self, info):
-        # Download thumbnail
-        info["thumbnail_url"] = info.get("thumbnail").split("?")[0]
-        if configs["thumbnails"]:
-            utils.Logger.info(f"Downloading video thumbnail", video_id)
-            try:
-                thumbnail = requests.get(info["thumbnail_url"])
-                thumbnail.raise_for_status()
-                if not thumbnail.content: raise
-            except requests.RequestException:
-                utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", video_id, "requests"))
-
-        try:
-            # Get video rating
-            ryd = requests.get(f"{utils.RYD_API}Votes?videoId={video_id}", timeout=0.2).json()
-            if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
-        except requests.RequestException as e:
-            utils.Logger.error(msg=utils.err_format(e, video_id, "requests"))
-            ryd = {}
-
-        if info.get("description") == utils.DEFAULT_DESC: info["description"] = ""
-        info["age_limit"] = (info.get("age_limit") or None)
-        info["live_status"] = (info.get("live_status") or None)
-        info["fps"] = (info.get("fps") or None)
-        info["audio_channels"] = (info.get("audio_channels") or None)
-        info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
-        info["upload_date"] = parse(info["upload_date"]) if info.get("upload_date") else None
-        info["category"] = info["categories"][0] if info.get("categories") else None
-        info["likes"] = (ryd.get("likes") or info.get("like_count"))
-        info["dislikes"] = ryd.get("dislikes")
-        info["views"] = (ryd.get("viewCount") or info.get("view_count"))
-        info["rating"] = ryd.get("rating")
-        info["thumbnail"] = (thumbnail.content or None)
-        info["comments"] = info.get("comments")
-        info["channel_follower_count"] = info.get("channel_follower_count")
-        return info
-
-
-    def print_info(self, video_id):
-        info = self.get_info(video_id, False)
-        if not info: return
-
-        print("\nThumbnail: " + info["thumbnail_url"])
-        print(info["title"])
-        print(f"{info['views']} views | {info['upload_date']} | {info['likes']} likes  {info['dislikes']} dislikes\n")
-        print(f"{info['uploader']} | {info['channel_follower_count']} subscribers")
-        print("-----------------------------------------------------------------")
-        print(info["description"])
-
 
 
 class Config:
