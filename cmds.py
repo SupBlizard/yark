@@ -125,7 +125,9 @@ class Archive:
         info["channel_follower_count"] = info.get("channel_follower_count")
         return info
 
+
     def video(self, video_id):
+        if not video_id: raise ValueError("Missing video ID")
         video_id, cur = video_id[0], db.cursor()
         if exists := cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone():
             if exists[1] != "lost":
@@ -228,9 +230,8 @@ class Archive:
 
     # https://www.youtube.com/playlist?list=PLJOKxKrh9kD2zNxOC1oYZxcLbwHA7v50J
     def playlist(self, path):
-        if not path: raise ValueError("Missing path")
-
         try:
+            if not path: raise ValueError("Missing path")
             with open(" ".join(path), "rt", newline="") as pl_file:
                 playlist = list(csv.DictReader(pl_file, delimiter=','))[0]
                 # Reset file stream position
@@ -243,14 +244,11 @@ class Archive:
             raise FileNotFoundError("Playlist file not found")
         except csv.Error as e:
             raise csv.Error(f"The CSV reader appears illiterate: {e}")
+        else: cur = db.cursor()
 
-        cur = db.cursor()
-
-        # Clear previous playlist data
+        # Overwrite playlist if it already exists
         cur.execute("DELETE FROM playlists WHERE playlist_id == ?", (playlist["Playlist ID"],))
-
-        # Store playlist
-        cur.execute("INSERT OR IGNORE INTO playlists VALUES(?,?,?,?,?,?,?)", (playlist["Playlist ID"],
+        cur.execute("INSERT INTO playlists VALUES(?,?,?,?,?,?,?)", (playlist["Playlist ID"],
             playlist["Channel ID"], parse(playlist["Time Created"]).timestamp(),
             parse(playlist["Time Updated"]).timestamp(), playlist["Title"],
             playlist["Description"], playlist["Visibility"])
