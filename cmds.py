@@ -37,7 +37,8 @@ with open("configs.json", "a+") as config_file:
 
 options = {
     "quiet": True,
-    "logger": utils.Logger()
+    "logger": utils.Logger(),
+    "extract_flat":"in_playlist"
 }
 
 
@@ -110,10 +111,10 @@ class Archive:
             ryd = {}
 
         if info.get("description") == utils.DEFAULT_DESC: info["description"] = ""
-        info["age_limit"] = (info.get("age_limit") or None)
-        info["live_status"] = (info.get("live_status") or None)
-        info["fps"] = (info.get("fps") or None)
-        info["audio_channels"] = (info.get("audio_channels") or None)
+        info["age_limit"] = info.get("age_limit")
+        info["live_status"] = info.get("live_status")
+        info["fps"] = info.get("fps")
+        info["audio_channels"] = info.get("audio_channels")
         info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
         info["upload_date"] = parse(info["upload_date"]) if info.get("upload_date") else None
         info["category"] = info["categories"][0] if info.get("categories") else None
@@ -137,10 +138,9 @@ class Archive:
             # Re-attempt to archive if a video is lost
             utils.Logger.info("Video previously archived but lost, attempting recovery", video_id)
 
-        # Extract video info
         v = self.__get_video(video_id)
         if not v:
-            cur.execute("INSERT OR IGNORE INTO videos (video_id, availability) VALUES (?,?)", (video_id,"lost"))
+            cur.execute("INSERT OR IGNORE INTO videos (video_id, availability) VALUES (?,?)", (video_id, "lost"))
             db.commit()
             return
 
@@ -206,6 +206,7 @@ class Archive:
         utils.Logger.info(msg, video_id)
 
 
+
     def dump(self, args):
         if not args: raise TypeError("Dump what ?")
         if args[0].lower() == "thumbnails":
@@ -229,28 +230,57 @@ class Archive:
                 print(utils.color("There are no thumbnails in the database.", "yellow"))
 
     # https://www.youtube.com/playlist?list=PLJOKxKrh9kD2zNxOC1oYZxcLbwHA7v50J
-    def playlist(self, path):
-        try:
-            if not path: raise ValueError("Missing path")
-            with open(" ".join(path), "rt", newline="") as pl_file:
-                playlist = list(csv.DictReader(pl_file, delimiter=','))[0]
-                # Reset file stream position
-                pl_file.seek(0)
+    def playlist(self, args):
+        if not args: raise ValueError("What playlist ?")
 
-                playlist["Videos"] = list(csv.reader(pl_file, delimiter=','))[4:-1]
-            # Validate playlist ID
-            utils.is_("playlist", playlist.get("Playlist ID"))
-        except FileNotFoundError:
-            raise FileNotFoundError("Playlist file not found")
-        except csv.Error as e:
-            raise csv.Error(f"The CSV reader appears illiterate: {e}")
-        else: cur = db.cursor()
+        path = " ".join(args)
+        if path.split(".")[-1] == "csv":
+            try:
+                # Get playlist from file
+                with open(path, "rt", newline="") as pl_file:
+                    playlist = list(csv.DictReader(pl_file, delimiter=','))[0]
+                    # Reset file stream position
+                    pl_file.seek(0)
+
+                    playlist["Videos"] = list(csv.reader(pl_file, delimiter=','))[4:-1]
+                # Validate playlist ID
+                utils.is_("playlist", playlist.get("Playlist ID"))
+            except FileNotFoundError:
+                raise FileNotFoundError("Playlist file not found")
+            except csv.Error as e:
+                raise csv.Error(f"The CSV reader appears illiterate: {e}")
+        else:
+            # Get playlist from YT-DLP
+            utils.is_("playlist", args[0])
+            with yt_dlp.YoutubeDL({"quiet":True} | options) as ydlp:
+                info = ydlp.extract_info(args[0], download=False)
+
+            for i in range(len(info.get("entries") or [])):
+                info["entries"][i] = [info["entries"][i]["id"], None]
+
+            playlist = {
+                "Playlist ID": info.get("id"),
+                "Channel ID": info.get("channel_id"),
+                "Time Created": None,
+                "Time Updated": info.get("modified_date"),
+                "Title": info.get("title"),
+                "Description": info.get("description"),
+                "Visibility": info.get("availability"),
+                "Videos": info.get("entries")
+            }
+
+        if playlist.get("Time Updated"):
+            parse(playlist["Time Updated"]).timestamp()
+        if playlist.get("Time Created"):
+            parse(playlist["Time Created"]).timestamp()
+
+        cur = db.cursor()
 
         # Overwrite playlist if it already exists
         cur.execute("DELETE FROM playlists WHERE playlist_id == ?", (playlist["Playlist ID"],))
         cur.execute("INSERT INTO playlists VALUES(?,?,?,?,?,?,?)", (playlist["Playlist ID"],
-            playlist["Channel ID"], parse(playlist["Time Created"]).timestamp(),
-            parse(playlist["Time Updated"]).timestamp(), playlist["Title"],
+            playlist["Channel ID"], playlist["Time Created"],
+            playlist["Time Updated"], playlist["Title"],
             playlist["Description"], playlist["Visibility"])
         )
 
@@ -258,8 +288,11 @@ class Archive:
         time_started = utils.time.perf_counter()
         for i, video in enumerate(playlist["Videos"]):
             utils.step_format(i+1, len(playlist["Videos"]), time_started)
+            # Parse timestamp
+            if video[1]: video[1] = parse(video[1]).timestamp()
+
             # remove spaces from video ID and parse timestamp
-            video = [video[0].replace(" ", ""), parse(video[1]).timestamp()]
+            video = [video[0].replace(" ", ""), video[1]]
             try:
                 self.video([video[0]])
                 cur.execute("INSERT INTO playlist_videos(playlist, video, added) VALUES(?,?,?)", (
@@ -276,7 +309,7 @@ class Archive:
     def playlist_from_url(self, url):
         if not url: raise ValueError("Missing url")
         url = url[0]
-        with yt_dlp.YoutubeDL() as ydlp:
+        with yt_dlp.YoutubeDL(options) as ydlp:
             info = ydlp.extract_info(url, download=False)
 
         # Playlist ID, Channel ID, Time Created, Time Updated, Title, Description, Visibility
@@ -284,6 +317,13 @@ class Archive:
             info["title"], info["description"], info["availability"])
 
         print(list(info["entries"][0]))
+
+        for entry in info["entries"]:
+            print(entry)
+            if not entry:
+                db.execute("INSERT OR IGNORE INTO videos (video_id, availability) VALUES (?,?)", (video_id, "lost"))
+            else: self.video([entry["id"]])
+
 
     def history(self, args):
         # TODO
