@@ -307,25 +307,6 @@ class Archive:
         print(utils.color(f"Finished Archiving playlist <{playlist['Title']}> ({playlist['Playlist ID']})", "green", True))
 
 
-    def playlist_from_url(self, url):
-        if not url: raise ValueError("Missing url")
-        url = url[0]
-        with yt_dlp.YoutubeDL(options) as ydlp:
-            info = ydlp.extract_info(url, download=False)
-
-        # Playlist ID, Channel ID, Time Created, Time Updated, Title, Description, Visibility
-        print(info["id"], info["channel_id"], info["epoch"], info["modified_date"],
-            info["title"], info["description"], info["availability"])
-
-        print(list(info["entries"][0]))
-
-        for entry in info["entries"]:
-            print(entry)
-            if not entry:
-                db.execute("INSERT OR IGNORE INTO videos (video_id, availability) VALUES (?,?)", (video_id, "lost"))
-            else: self.video([entry["id"]])
-
-
     def history(self, args):
         # TODO
         pass
