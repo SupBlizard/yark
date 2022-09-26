@@ -280,11 +280,15 @@ class Archive:
         if playlist.get("Time Created"):
             parse(playlist["Time Created"]).timestamp()
 
-        cur = db.cursor()
+        id, cur = playlist["Playlist ID"], db.cursor()
+
+        if cur.execute("SELECT 1 FROM playlists WHERE playlist_id == ?", (id,)).fetchone():
+            print(f"Database already exists, Overwrite it ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
+            if not utils.user_confirm(): return
 
         # Overwrite playlist if it already exists
-        cur.execute("DELETE FROM playlists WHERE playlist_id == ?", (playlist["Playlist ID"],))
-        cur.execute("INSERT INTO playlists VALUES(?,?,?,?,?,?,?)", (playlist["Playlist ID"],
+        cur.execute("DELETE FROM playlists WHERE playlist_id == ?", (id,))
+        cur.execute("INSERT INTO playlists VALUES(?,?,?,?,?,?,?)", (id,
             playlist["Channel ID"], playlist["Time Created"],
             playlist["Time Updated"], playlist["Title"],
             playlist["Description"], playlist["Visibility"])
