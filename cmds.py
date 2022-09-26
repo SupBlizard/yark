@@ -369,7 +369,9 @@ class Config:
         self.help = "TODO"
 
     def default(self):
-        print(f"Your configuration: {configs}")
+        for key in configs:
+            key_value = utils.color(configs[key],"green" if configs[key] else "red", bright=True)
+            print(f"{key}: {key_value.lower()}")
 
     def get(self, args):
         if not args: raise ValueError("Get what ?")
@@ -378,14 +380,13 @@ class Config:
         if args[0] not in configs:
             raise ValueError(f"Configuration {args[0]} does not exist")
 
-        state = args[1]
-        if state == "true":
+        if args[1] == "true":
             configs[args[0]] = True
-            utils.Logger.info(f"Get {args[0]} set to <True>")
-        elif state == "false":
+        elif args[1] == "false":
             configs[args[0]] = False
-            utils.Logger.info(f"Get {args[0]} set to <False>")
         else: raise ValueError("True or false ?")
 
         with open("configs.json", "w") as config_file:
             config_file.write(json.dumps(configs))
+
+        utils.Logger.info(f"Get {args[0]} set to <False>")
