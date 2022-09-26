@@ -102,13 +102,15 @@ class Archive:
                 thumbnail = requests.get(info["thumbnail_url"])
                 thumbnail.raise_for_status()
                 if not thumbnail.content: raise
+                info["thumbnail"] = thumbnail.content
             except requests.RequestException:
                 utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", info["id"], "requests"))
                 info["thumbnail"] = None
+        else: info["thumbnail"] = None
 
         try:
             # Get video rating
-            ryd = requests.get(f"{utils.RYD_API}Votes?videoId={info['id']}", timeout=0.2).json()
+            ryd = requests.get(f"{utils.RYD_API}Votes?videoId={info['id']}", timeout=0.3).json()
             if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
         except requests.RequestException as e:
             utils.Logger.error(msg=utils.err_format(e, info["id"], "requests"))
