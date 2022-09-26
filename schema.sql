@@ -81,19 +81,19 @@ CREATE TABLE IF NOT EXISTS history (
 
 CREATE TABLE IF NOT EXISTS playlists (
     playlist_id TEXT PRIMARY KEY NOT NULL,
-    channel TEXT NOT NULL,
-    created INTEGER NOT NULL,
-    updated INTEGER NOT NULL,
-    title TEXT NOT NULL,
+    channel TEXT,
+    created INTEGER,
+    updated INTEGER,
+    title TEXT,
     description TEXT,
-    visibility TEXT NOT NULL
+    visibility TEXT
 );
 
 CREATE TABLE IF NOT EXISTS playlist_videos (
     pl INTEGER PRIMARY KEY NOT NULL,
     playlist TEXT NOT NULL,
     video TEXT NOT NULL, -- No foreign key as playlists must remain static
-    added INTEGER NOT NULL,
+    added INTEGER,
     FOREIGN KEY(playlist) REFERENCES playlists(playlist_id) ON DELETE CASCADE
 );
 
