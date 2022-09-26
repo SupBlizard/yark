@@ -83,7 +83,7 @@ class Archive:
                 info["availability"] = "recovered"
                 return info
             except yt_dlp.utils.DownloadError as e:
-                utils.Logger.info(f"Retrying, {attempts} left", id)
+                utils.Logger.info(f"Retrying, {2-i} attempts left", id)
                 utils.time.sleep(2)
 
         utils.Logger.info(msg=utils.err_format("Failed recovering video", id))
@@ -252,6 +252,7 @@ class Archive:
         else:
             # Get playlist from YT-DLP
             utils.is_("playlist", args[0])
+            utils.Logger.info("Extracting playlist info", args[0])
             with yt_dlp.YoutubeDL({"quiet":True} | options) as ydlp:
                 info = ydlp.extract_info(args[0], download=False)
 
