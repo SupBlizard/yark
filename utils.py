@@ -65,11 +65,10 @@ def user_confirm():
 # Custom logger
 class Logger(object):
     def debug(self, msg):
-        print(msg)
+        pass
 
     def warning(self, msg):
         # TODO: Save event in debug log
-        print(msg)
         pass
 
     def error(self=None, msg=None):
