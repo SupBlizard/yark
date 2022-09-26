@@ -4,14 +4,18 @@ from dateutil.parser import *
 import utils
 
 
+def dict_factory(cursor, row):
+    columns = [col[0] for col in cursor.description]
+    return {key: value for key, value in zip(columns, row)}
+
 try:
     # Open the database
     db = sqlite3.connect("youtube.db")
+    db.row_factory = dict_factory
     with open("schema.sql", "r") as schema:
         db.executescript(schema.read())
 except FileNotFoundError as e:
     print("Database schema not found.")
-
 
 # Read configuration or write defaults
 with open("configs.json", "a+") as config_file:
@@ -131,7 +135,7 @@ class Archive:
         if not video_id: raise ValueError("Missing video ID")
         video_id, cur = video_id[0], db.cursor()
         if exists := cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone():
-            if exists[1] != "lost":
+            if exists["availability"] != "lost":
                 utils.Logger.info("Video already archived, skipping.", video_id)
                 return
 
@@ -198,13 +202,12 @@ class Archive:
         db.commit()
 
         # Print video archival status
-        if exists and exists[1] == "lost":
+        if exists and exists["availability"] == "lost":
             msg = "Lost video somehow recovered!"
         elif v.get("availability") == "recovered":
             msg = "Video successfully recovered and archived"
         else: msg = "Video successfully archived"
         utils.Logger.info(msg, video_id)
-
 
 
     def dump(self, args):
@@ -216,12 +219,12 @@ class Archive:
 
             dumped = 0
             for video in db.execute("SELECT video_id, thumbnail, thumbnail_url FROM videos").fetchall():
-                if not video[1]: continue
-                thumbnail_path = f"thumbnails/{video[0]}.{video[2].split('.')[-1]}"
+                if not video["thumbnail"]: continue
+                thumbnail_path = f"thumbnails/{video['video_id']}.{video['thumbnail_url'].split('.')[-1]}"
 
                 if os.path.exists(thumbnail_path): continue
                 with open(thumbnail_path, "wb") as thumb_file:
-                    thumb_file.write(video[1])
+                    thumb_file.write(video["thumbnail"])
                     dumped += 1
 
             if dumped != 0:
@@ -324,9 +327,9 @@ class Unarchive:
         # Validate ID
         utils.is_(thing, id)
 
-        if title := db.execute(f"SELECT title FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone():
+        if title := db.execute(f"SELECT title FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone()["title"]:
             # Confirm user wants to delete the thing
-            print(f"Delete {thing} <{title[0]}> ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
+            print(f"Delete {thing} <{title}> ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
             if not utils.user_confirm(): return
             print()
 
