@@ -354,6 +354,20 @@ class Unarchive:
         else: self.__unarchive("playlist", playlist_id[0])
 
 
+class Download:
+    def __init__(self):
+        self.help = "TODO"
+
+    def default(self):
+        raise Exception(f"Missing method")
+
+    def video(self, args):
+        pass
+
+    def playlist(self, args):
+        pass
+
+
 class Config:
     def __init__(self):
         self.help = "TODO"
