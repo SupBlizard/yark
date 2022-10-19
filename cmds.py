@@ -70,7 +70,7 @@ class Archive:
         raise Exception(f"Missing method")
 
     def __get_video(self, id):
-        utils.is_("video", id)
+        utils.is_video(id)
 
         utils.Logger.info("Extracting data", id)
         with yt_dlp.YoutubeDL({"getcomments":configs["comments"]} | options) as ydlp:
@@ -248,15 +248,12 @@ class Archive:
                     pl_file.seek(0)
 
                     playlist["Videos"] = list(csv.reader(pl_file, delimiter=','))[4:-1]
-                # Validate playlist ID
-                utils.is_("playlist", playlist.get("Playlist ID"))
             except FileNotFoundError:
                 raise FileNotFoundError("Playlist file not found")
             except csv.Error as e:
                 raise csv.Error(f"The CSV reader appears illiterate: {e}")
         else:
-            # Get playlist from YT-DLP
-            utils.is_("playlist", args[0])
+            # Get playlist from yt-dlp
             utils.Logger.info("Extracting playlist info", args[0])
             with yt_dlp.YoutubeDL({"quiet":True} | options) as ydlp:
                 info = ydlp.extract_info(args[0], download=False)
@@ -330,10 +327,13 @@ class Unarchive:
         raise Exception(f"Missing method")
 
     def __unarchive(self, thing, id):
-        # Validate ID
-        utils.is_(thing, id)
+        # Validate video IDs
+        if thing == "video":
+            utils.is_video(id)
 
-        if title := db.execute(f"SELECT title FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone()["title"]:
+        title = db.execute(f"SELECT title FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone()
+        if title:
+            title = title["title"]
             # Confirm user wants to delete the thing
             print(f"Delete {thing} <{title}> ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
             if not utils.user_confirm(): return

@@ -9,30 +9,17 @@ CONFIGS_DEFAULT = {"thumbnails": True, "comments": True}
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 DELETE = "\033[K\033[A"*2
 
-ID_LENGTH = {
-    "video": 11,
-    "playlist": 34
-}
-
 YES = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it", "why not"]
 MAYBE = ["maybe", "perhaps", "possibly", "conceivably", "probably"]
 NO = ["no", "n", "nah", "nou", "dont", "don't"]
 
 
-def is_(thing, id):
+def is_video(id):
     if not id: raise ValueError("Missing ID")
-    length = ID_LENGTH[thing]
-
-    if len(id) == length:
-        chars = "[0-9A-Za-z_-]"
-        start = ""
-        if thing == "playlist":
-            start = "^PL"
-            length -= 2
-        expression = re.search(f"{start}{chars}{{{length}}}", id)
+    if len(id) == 11:
+        expression = re.search(f"[0-9A-Za-z_-]11", id)
         if expression: return expression.group()
-    raise ValueError(f"Invalid {thing} ID")
-
+    raise ValueError(f"Invalid video ID")
 
 
 def err_format(msg, id="", process="youtube"):
