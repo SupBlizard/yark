@@ -17,7 +17,7 @@ NO = ["no", "n", "nah", "nou", "dont", "don't"]
 def is_video(id):
     if not id: raise ValueError("Missing ID")
     if len(id) == 11:
-        expression = re.search(f"[0-9A-Za-z_-]11", id)
+        expression = re.search("[0-9A-Za-z_-]{11}", id)
         if expression: return expression.group()
     raise ValueError(f"Invalid video ID")
 
