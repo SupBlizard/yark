@@ -51,14 +51,14 @@ def run(cmd_class, args):
     if not args: return cmd_class.default()
 
     cmd = args.pop(0).lower()
-    invalid_attr = f'Invalid attribute "{cmd}"'
-    cmd = getattr(cmd_class, cmd, Exception(invalid_attr))
+    invalid_attr = f'Invalid sub-command: "{cmd}"'
+    cmd = getattr(cmd_class, cmd, AttributeError(invalid_attr))
 
     if callable(cmd):
         if cmd.__name__ != "default": return cmd(args)
-        else: raise Exception(invalid_attr)
+        raise AttributeError(invalid_attr)
     elif type(cmd) == Exception: raise cmd
-    else: return cmd
+    return cmd
 
 
 # https://www.youtube.com/watch?v=qOgldkETcxk
@@ -237,12 +237,13 @@ class Archive:
     # https://www.youtube.com/playlist?list=PLJOKxKrh9kD2zNxOC1oYZxcLbwHA7v50J
     def playlist(self, args):
         if not args: raise ValueError("What playlist ?")
+        args = " ".join(args)
 
-        path = " ".join(args)
-        if path.split(".")[-1] == "csv":
+        # Check if the arguments are an ID or a filepath
+        if args.split(".")[-1] == "csv":
             try:
                 # Get playlist from file
-                with open(path, "rt", newline="") as pl_file:
+                with open(args, "rt", newline="") as pl_file:
                     playlist = list(csv.DictReader(pl_file, delimiter=','))[0]
                     # Reset file stream position
                     pl_file.seek(0)
@@ -254,9 +255,9 @@ class Archive:
                 raise csv.Error(f"The CSV reader appears illiterate: {e}")
         else:
             # Get playlist from yt-dlp
-            utils.Logger.info("Extracting playlist info", args[0])
+            utils.Logger.info("Extracting playlist info", args)
             with yt_dlp.YoutubeDL({"quiet":True} | options) as ydlp:
-                info = ydlp.extract_info(args[0], download=False)
+                info = ydlp.extract_info(args, download=False)
 
             for i in range(len(info.get("entries") or [])):
                 info["entries"][i] = [info["entries"][i]["id"], None]
@@ -272,16 +273,15 @@ class Archive:
                 "Videos": info.get("entries")
             }
 
-        if playlist.get("Time Updated"):
-            parse(playlist["Time Updated"]).timestamp()
-        if playlist.get("Time Created"):
-            parse(playlist["Time Created"]).timestamp()
-
+        # Parse timestamps into a datetime object
+        if playlist.get("Time Updated"): parse(playlist["Time Updated"]).timestamp()
+        if playlist.get("Time Created"): parse(playlist["Time Created"]).timestamp()
         id, cur = playlist["Playlist ID"], db.cursor()
 
+        # Check if the playlist already exists in the database
         if cur.execute("SELECT 1 FROM playlists WHERE playlist_id == ?", (id,)).fetchone():
-            print(f"Database already exists, Overwrite it ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
-            if not utils.user_confirm(): return
+            print(f"Playlist already exists, Overwrite it ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
+            utils.user_confirm()
 
         # Overwrite playlist if it already exists
         cur.execute("DELETE FROM playlists WHERE playlist_id == ?", (id,))
@@ -336,7 +336,7 @@ class Unarchive:
             title = title["title"]
             # Confirm user wants to delete the thing
             print(f"Delete {thing} <{title}> ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
-            if not utils.user_confirm(): return
+            utils.user_confirm()
             print()
 
             db.execute(f"DELETE FROM {thing}s WHERE {thing}_id == ?", (id,))
@@ -371,6 +371,7 @@ class Config:
         if args[0] not in configs:
             raise ValueError(f"Configuration {args[0]} does not exist")
 
+        args[1] = args[1].lower()
         if args[1] == "true":
             configs[args[0]] = True
         elif args[1] == "false":
