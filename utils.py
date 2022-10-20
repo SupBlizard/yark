@@ -1,4 +1,4 @@
-import time, re
+import time, re, logging
 from colorama import Style, Fore, Back
 
 # CONSTANTS
@@ -50,21 +50,18 @@ def user_confirm():
     return False
 
 # Custom logger
-class Logger(object):
+class VideoLogger(object):
     def debug(self, msg):
-        pass
+        logging.debug(msg)
 
-    def warning(self, msg):
-        # TODO: Save event in debug log
-        pass
+    def warning(self, msg=None):
+        logging.warning(msg)
 
     def error(self=None, msg=None):
-        # TODO: Save event in debug log
-        if msg: print(msg)
+        logging.error(msg)
 
-    def info(msg, vid="", process="youtube"):
-        if vid: vid = f"[{process}] {vid}: "
-        print(f"{color('INFO:', 'cyan')} {vid}{msg}")
+    def info(self=None, msg=None):
+        logging.info(msg)
 
 
 def color(text, color="", bright=""):
