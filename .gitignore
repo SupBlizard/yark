@@ -2,6 +2,7 @@ __pycache__
 dataset
 thumbnails
 configs.json
+debug.log
 .venv
 *.exe
 *.bat
