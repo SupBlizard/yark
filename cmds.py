@@ -1,7 +1,15 @@
-import os, json, csv, sqlite3, requests, time, yt_dlp
-import datetime
+import sys, os, json, csv, sqlite3, requests, time, yt_dlp, datetime, logging
 from dateutil.parser import *
 import utils
+
+# Initialize logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="[%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("debug.log"),
+        logging.StreamHandler(sys.stdout)
+    ])
 
 
 def dict_factory(cursor, row):
@@ -41,7 +49,7 @@ with open("configs.json", "a+") as config_file:
 
 options = {
     "quiet": True,
-    "logger": utils.Logger(),
+    "logger": utils.VideoLogger(),
     "extract_flat":"in_playlist"
 }
 
@@ -72,12 +80,12 @@ class Archive:
     def __get_video(self, id):
         utils.is_video(id)
 
-        utils.Logger.info("Extracting data", id)
+        logging.info("Extracting data")
         with yt_dlp.YoutubeDL({"getcomments":configs["comments"]} | options) as ydlp:
             try:
                 info = ydlp.extract_info(id, download=False)
             except yt_dlp.utils.DownloadError as e:
-                utils.Logger.info("Searching the Wayback machine", id)
+                logging.info("Searching the Wayback machine")
             else: return info
 
         for i in range(3):
@@ -87,24 +95,24 @@ class Archive:
                 info["availability"] = "recovered"
                 return info
             except yt_dlp.utils.DownloadError as e:
-                utils.Logger.info(f"Retrying, {2-i} attempts left", id)
+                logging.info(f"Retrying, {2-i} attempts left")
                 utils.time.sleep(2)
 
-        utils.Logger.info(msg=utils.err_format("Failed recovering video", id))
+        logging.warning("Failed recovering video")
 
 
     def __refine_metadata(self, info):
         # Download thumbnail
         info["thumbnail_url"] = info.get("thumbnail").split("?")[0]
         if configs["thumbnails"]:
-            utils.Logger.info(f"Downloading video thumbnail", info["id"])
+            logging.info("Downloading video thumbnail")
             try:
                 thumbnail = requests.get(info["thumbnail_url"])
                 thumbnail.raise_for_status()
                 if not thumbnail.content: raise
                 info["thumbnail"] = thumbnail.content
             except requests.RequestException:
-                utils.Logger.error(msg=utils.err_format("Failed downloading thumbnail", info["id"], "requests"))
+                logging.warn("Failed downloading thumbnail")
                 info["thumbnail"] = None
         else: info["thumbnail"] = None
 
@@ -113,7 +121,7 @@ class Archive:
             ryd = requests.get(f"{utils.RYD_API}Votes?videoId={info['id']}", timeout=0.3).json()
             if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
         except requests.RequestException as e:
-            utils.Logger.error(msg=utils.err_format(e, info["id"], "requests"))
+            logging.error(e)
             ryd = {}
 
         if info.get("description") == utils.DEFAULT_DESC: info["description"] = ""
@@ -138,11 +146,11 @@ class Archive:
         video_id, cur = video_id[0], db.cursor()
         if exists := cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone():
             if exists["availability"] != "lost":
-                utils.Logger.info("Video already archived, skipping.", video_id)
+                logging.info("Video already archived, skipping.")
                 return
 
             # Re-attempt to archive if a video is lost
-            utils.Logger.info("Video previously archived but lost, attempting recovery", video_id)
+            logging.info("Video previously archived but lost, attempting recovery")
 
         v = self.__get_video(video_id)
         if not v:
@@ -170,7 +178,7 @@ class Archive:
                 v["audio_channels"], v["category"], v["filesize"], None
             ))
         except sqlite3.IntegrityError as e:
-            utils.Logger.error(msg=utils.err_format(f"Integrity Error: {e}", video_id, "sqlite3"))
+            logging.error(f"Integrity Error: {e}")
             # Update video info
             # TODO: PUT THIS GARBAGE IN THE UPDATE METHOD WHEN ITS DONE
             cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
@@ -209,7 +217,7 @@ class Archive:
         elif v.get("availability") == "recovered":
             msg = "Video successfully recovered and archived"
         else: msg = "Video successfully archived"
-        utils.Logger.info(msg, video_id)
+        logging.info(msg)
 
 
     def dump(self, args):
@@ -255,7 +263,7 @@ class Archive:
                 raise csv.Error(f"The CSV reader appears illiterate: {e}")
         else:
             # Get playlist from yt-dlp
-            utils.Logger.info("Extracting playlist info", args)
+            logging.info("Extracting playlist info")
             with yt_dlp.YoutubeDL({"quiet":True} | options) as ydlp:
                 info = ydlp.extract_info(args, download=False)
 
@@ -305,7 +313,7 @@ class Archive:
                 cur.execute("INSERT INTO playlist_videos(playlist, video, added) VALUES(?,?,?)", (
                     playlist["Playlist ID"], video[0], video[1]))
             except sqlite3.IntegrityError as e:
-                utils.Logger.error(msg=utils.err_format(f"Integrity Error: {e}", video[0], "sqlite3"))
+                logging.error(f"Integrity Error: {e}")
                 continue
 
         db.commit()
@@ -342,7 +350,7 @@ class Unarchive:
             db.execute(f"DELETE FROM {thing}s WHERE {thing}_id == ?", (id,))
             db.commit()
             print(utils.color(f"Successfully deleted {thing} <{id}>", "green", True))
-        else: utils.Logger.error(msg=utils.err_format(f"{thing.capitalize()} not found", id, "sqlite3"))
+        else: logging.error(f"{thing.capitalize()} not found")
 
 
     def video(self, video_id):
@@ -381,4 +389,4 @@ class Config:
         with open("configs.json", "w") as config_file:
             config_file.write(json.dumps(configs))
 
-        utils.Logger.info(f"Get {args[0]} set to <False>")
+        logging.info(f"Get {args[0]} set to <False>")
