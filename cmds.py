@@ -23,7 +23,9 @@ try:
     with open("schema.sql", "r") as schema:
         db.executescript(schema.read())
 except FileNotFoundError as e:
-    print("Database schema not found.")
+    logging.critical("Database schema not found.")
+    sys.exit()
+
 
 # Read configuration or write defaults
 with open("configs.json", "a+") as config_file:
@@ -31,13 +33,13 @@ with open("configs.json", "a+") as config_file:
         config_file.seek(0)
         configs = json.loads(config_file.read())
         if configs.keys() != utils.CONFIGS_DEFAULT.keys():
-            raise json.JSONDecodeError("Invalid keys")
+            raise ValueError("Invalid keys")
 
         for key in utils.CONFIGS_DEFAULT:
             if not isinstance(configs[key], type(utils.CONFIGS_DEFAULT[key])):
                 raise ValueError(f"Invalid value datatype for {key}")
-
     except (json.JSONDecodeError, ValueError) as e:
+        logging.error(f"{e}, resetting configs.")
         configs = None
 
     if not configs:
@@ -260,7 +262,8 @@ class Archive:
             except FileNotFoundError:
                 raise FileNotFoundError("Playlist file not found")
             except csv.Error as e:
-                raise csv.Error(f"The CSV reader appears illiterate: {e}")
+                logging.error(f"CSV reader error: {e}")
+                return
         else:
             # Get playlist from yt-dlp
             logging.info("Extracting playlist info")
