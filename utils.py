@@ -9,6 +9,9 @@ CONFIGS_DEFAULT = {"thumbnails": True, "comments": True}
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 DELETE = "\033[K\033[A"*2
 
+# https://stackoverflow.com/a/14693789/12727730
+ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 YES = ["yes", "y", "yep", "sure", "ight", "ok", "okey", "go ahead", "cool", "ye", "yeh", "yee", "do it", "why not"]
 MAYBE = ["maybe", "perhaps", "possibly", "conceivably", "probably"]
 NO = ["no", "n", "nah", "nou", "dont", "don't"]
@@ -50,18 +53,21 @@ def user_confirm():
     return False
 
 # Custom logger
-class VideoLogger(object):
+class YtLogger(object):
+    def __cleanup(self, msg):
+        return ANSI_ESCAPE.sub("", msg)
+
     def debug(self, msg):
-        logging.debug(msg)
+        logging.debug(self.__cleanup(msg))
 
-    def warning(self, msg=None):
-        logging.warning(msg)
+    def warning(self, msg):
+        logging.warning(self.__cleanup(msg))
 
-    def error(self=None, msg=None):
-        logging.error(msg)
+    def error(self, msg):
+        logging.error(self.__cleanup(msg).replace("ERROR: ",""))
 
-    def info(self=None, msg=None):
-        logging.info(msg)
+    def info(self, msg):
+        logging.info(self.__cleanup(msg))
 
 
 def color(text, color="", bright=""):
