@@ -49,7 +49,7 @@ with open("configs.json", "a+") as config_file:
 
 options = {
     "quiet": True,
-    "logger": utils.VideoLogger(),
+    "logger": utils.YtLogger(),
     "extract_flat":"in_playlist"
 }
 
@@ -265,7 +265,9 @@ class Archive:
             # Get playlist from yt-dlp
             logging.info("Extracting playlist info")
             with yt_dlp.YoutubeDL({"quiet":True} | options) as ydlp:
-                info = ydlp.extract_info(args, download=False)
+                try:
+                    info = ydlp.extract_info(f"{utils.YOUTUBE}playlist?list={args}", download=False)
+                except yt_dlp.utils.DownloadError as e: return
 
             for i in range(len(info.get("entries") or [])):
                 info["entries"][i] = [info["entries"][i]["id"], None]
