@@ -24,11 +24,6 @@ def is_video(id):
         if expression: return expression.group()
     raise ValueError(f"Invalid video ID")
 
-
-def err_format(msg, id="", process="youtube"):
-    if id: id = f"[{process}] {id}: "
-    return f"{color('ERROR:', 'red')} {id}{msg}"
-
 def step_format(position, length, started):
     measures = ["sec", "min", "hr"]
     eta = (time.perf_counter() - started) * (length / position - 1)
