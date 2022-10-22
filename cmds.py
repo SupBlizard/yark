@@ -120,7 +120,8 @@ class Archive:
 
         try:
             # Get video rating
-            ryd = requests.get(f"{utils.RYD_API}Votes?videoId={info['id']}", timeout=0.3).json()
+            ryd = requests.get(f"{utils.RYD_API}Votes?videoId={info['id']}", timeout=1).json()
+            print(ryd)
             if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
         except requests.RequestException as e:
             logging.error(e)
@@ -219,7 +220,7 @@ class Archive:
         elif v.get("availability") == "recovered":
             msg = "Video successfully recovered and archived"
         else: msg = "Video successfully archived"
-        logging.info(msg)
+        print(utils.color(msg, "green", True))
 
 
     def dump(self, args):
@@ -394,4 +395,4 @@ class Config:
         with open("configs.json", "w") as config_file:
             config_file.write(json.dumps(configs))
 
-        logging.info(f"Get {args[0]} set to <False>")
+        print(f"Get {args[0]} set to <False>")
