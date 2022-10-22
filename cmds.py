@@ -121,7 +121,6 @@ class Archive:
         try:
             # Get video rating
             ryd = requests.get(f"{utils.RYD_API}Votes?videoId={info['id']}", timeout=1).json()
-            print(ryd)
             if not ryd.get("id"): raise requests.RequestException("Failed getting ratings")
         except requests.RequestException as e:
             logging.error(e)
@@ -328,8 +327,19 @@ class Archive:
 
 
     def history(self, args):
-        # TODO
-        pass
+        if not args: raise ValueError("Missing path")
+        path = " ".join(args)
+
+        try:
+            history_file = open(path, "r", encoding="utf8")
+            history_json = json.load(history_file)
+            print(len(history_json), type(history_json))
+            history_file.close()
+        except FileNotFoundError as e:
+            raise FileNotFoundError("History file not found")
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"{e}, {type(e)}")
+
 
 
 # https://www.youtube.com/watch?v=gbRe9zGFh6k
