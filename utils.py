@@ -1,4 +1,4 @@
-import time, re, logging
+import time, re, logging, math
 from colorama import Style, Fore, Back
 
 # CONSTANTS
@@ -24,27 +24,30 @@ def is_video(id):
         if expression: return expression.group()
     raise ValueError(f"Invalid video ID")
 
-def step_format(position, length, started):
-    measures = ["sec", "min", "hr"]
-    eta = (time.perf_counter() - started) * (length / position - 1)
-    if eta < 0: eta = 0
 
-    measure = 0
+TIMEUNITS = ["sec", "min", "hr"]
+def format_time(tim):
+    unit = 0
+    if tim < 0: tim = 0
     for i in range(2):
-        if eta >= 60:
-            eta /= 60
-            measure += 1
-    eta = round(eta, 1)
-    if eta % 1 == 0: eta = int(eta)
+        if tim >= 60:
+            tim /= 60
+            unit += 1
+        else: break
 
-    print(f"\n{color(f'[{position} / {length}]', 'cyan')} ETA: {eta} {measures[measure]}")
+    tim = math.floor(tim*10)/10
+    if tim % 1 == 0: tim = int(tim)
+    return {"time":tim, "unit":TIMEUNITS[unit]}
+
+def step_format(position, length, started):
+    eta = format_time((time.perf_counter() - started) * (length / position - 1))
+    print(f"\n{color(f'[{position} / {length}]', 'cyan')} ETA: {eta['time']} {eta['unit']}")
 
 def user_confirm():
     doit = input(f"{color('[', 'red')}{color('confirm', 'red', True)}{color(']:', 'red')} ").lower()
     if doit in YES: return True
     elif doit in MAYBE: print("I'll let you think about it.")
-    elif doit in NO: pass
-    else: print("What ?")
+    elif doit not in NO: print("What ?")
     return False
 
 # Custom logger
