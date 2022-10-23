@@ -149,7 +149,7 @@ class Archive:
         video_id, cur = video_id[0], db.cursor()
         if exists := cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone():
             if exists["availability"] != "lost":
-                logging.info("Video already archived, skipping.")
+                print("Video already archived, skipping.")
                 return
 
             # Re-attempt to archive if a video is lost
@@ -339,22 +339,21 @@ class Archive:
             print(f"{e}, {type(e)}")
 
         time_started = utils.time.perf_counter()
-        unavailable = 0
+        unavailable,cur = 0,db.cursor()
         for i, video in enumerate(history):
             utils.step_format(i+1, len(history), time_started)
-            print(video)
             if video.get("titleUrl"):
-                video_id = urllib.parse.unquote(video.get("titleUrl"))
-            else:
-                video_id = None
-                unavailable+=1
+                video["titleUrl"] = video.get("titleUrl").split("\u003d")[1]
+            else: unavailable+=1
 
-            # Skip archiving video for now (testing)
-            continue
             try:
-                self.video([video_id])
-                cur.execute("INSERT INTO history(video, watched) VALUES(?,?)", (video_id, parse(video["time"]).timestamp()))
-                db.commit()
+                self.video([video.get("titleUrl")])
+                data_tuple = (video.get("titleUrl"), parse(video["time"]).timestamp())
+                if not cur.execute("SELECT 1 FROM history WHERE video==? AND watched==?", data_tuple).fetchone():
+                    cur.execute("INSERT INTO history(video, watched) VALUES(?,?)", data_tuple)
+                    db.commit()
+                    print(utils.color("Added to history", "green", True))
+                else: print("Video already in history.")
             except sqlite3.IntegrityError as e:
                 logging.error(f"Integrity Error: {e}")
             except Exception as e:
