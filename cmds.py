@@ -1,5 +1,6 @@
 import sys, os, json, csv, sqlite3, requests, time, yt_dlp, datetime, logging
 from dateutil.parser import *
+import urllib.parse
 import utils
 
 # Initialize logging
@@ -319,7 +320,6 @@ class Archive:
                     playlist["Playlist ID"], video[0], video[1]))
             except sqlite3.IntegrityError as e:
                 logging.error(f"Integrity Error: {e}")
-                continue
 
         db.commit()
         # TODO: print total time taken
@@ -331,14 +331,39 @@ class Archive:
         path = " ".join(args)
 
         try:
-            history_file = open(path, "r", encoding="utf8")
-            history_json = json.load(history_file)
-            print(len(history_json), type(history_json))
-            history_file.close()
+            with open(path, "r", encoding="utf8") as history_file:
+                history = json.load(history_file)
         except FileNotFoundError as e:
             raise FileNotFoundError("History file not found")
         except (json.JSONDecodeError, ValueError) as e:
             print(f"{e}, {type(e)}")
+
+        time_started = utils.time.perf_counter()
+        unavailable = 0
+        for i, video in enumerate(history):
+            utils.step_format(i+1, len(history), time_started)
+            print(video)
+            if video.get("titleUrl"):
+                video_id = urllib.parse.unquote(video.get("titleUrl"))
+            else:
+                video_id = None
+                unavailable+=1
+
+            # Skip archiving video for now (testing)
+            continue
+            try:
+                self.video([video_id])
+                cur.execute("INSERT INTO history(video, watched) VALUES(?,?)", (video_id, parse(video["time"]).timestamp()))
+                db.commit()
+            except sqlite3.IntegrityError as e:
+                logging.error(f"Integrity Error: {e}")
+            except Exception as e:
+                print(f"{type(e)}, {e}")
+
+        time_taken = utils.format_time(utils.time.perf_counter()-time_started)
+        print(utils.color(f"Finished Archiving history, Time taken: {time_taken['time']} {time_taken['unit']}", "green", True))
+        print(f"{unavailable} unavailable")
+
 
 
 
