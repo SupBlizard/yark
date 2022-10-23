@@ -75,8 +75,7 @@ CREATE TABLE IF NOT EXISTS videos (
 CREATE TABLE IF NOT EXISTS history (
     history_id INTEGER PRIMARY KEY NOT NULL,
     video TEXT,
-    watched INTEGER NOT NULL,
-    FOREIGN KEY(history_id) REFERENCES videos(video_id)
+    watched INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS playlists (
