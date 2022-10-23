@@ -106,11 +106,11 @@ class Archive:
 
     def __refine_metadata(self, info):
         # Download thumbnail
-        info["thumbnail_url"] = info.get("thumbnail").split("?")[0]
-        if configs["thumbnails"]:
+        info["thumbnail_url"] = info.get("thumbnail")
+        if configs["thumbnails"] and info["thumbnail_url"]:
             logging.info("Downloading video thumbnail")
             try:
-                thumbnail = requests.get(info["thumbnail_url"])
+                thumbnail = requests.get(info["thumbnail_url"].split("?")[0])
                 thumbnail.raise_for_status()
                 if not thumbnail.content: raise
                 info["thumbnail"] = thumbnail.content
