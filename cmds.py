@@ -133,7 +133,7 @@ class Archive:
         info["fps"] = info.get("fps")
         info["audio_channels"] = info.get("audio_channels")
         info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
-        info["upload_date"] = parse(info["upload_date"]) if info.get("upload_date") else None
+        info["upload_date"] = parse(info["upload_date"]).timestamp() if info.get("upload_date") else None
         info["category"] = info["categories"][0] if info.get("categories") else None
         info["likes"] = (ryd.get("likes") or info.get("like_count"))
         info["dislikes"] = ryd.get("dislikes")
@@ -177,7 +177,7 @@ class Archive:
             cur.execute("INSERT INTO videos VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
                 v["id"], v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
                 v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
-                v["rating"], v["upload_date"].timestamp(), v["availability"], v["width"], v["height"], v["fps"],
+                v["rating"], v["upload_date"], v["availability"], v["width"], v["height"], v["fps"],
                 v["audio_channels"], v["category"], v["filesize"], None
             ))
         except sqlite3.IntegrityError as e:
@@ -190,7 +190,7 @@ class Archive:
                 fps = ?, audio_channels = ?, category = ?, filesize = ? WHERE video_id == ?""", (
                 v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
                 v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
-                v["rating"], v["upload_date"].timestamp(), v["availability"], v["width"], v["height"], v["fps"],
+                v["rating"], v["upload_date"], v["availability"], v["width"], v["height"], v["fps"],
                 v["audio_channels"], v["category"], v["filesize"], v["id"]
             ))
 
@@ -233,7 +233,7 @@ class Archive:
             dumped = 0
             for video in db.execute("SELECT video_id, thumbnail, thumbnail_url FROM videos").fetchall():
                 if not video["thumbnail"]: continue
-                thumbnail_path = f"thumbnails/{video['video_id']}.{video['thumbnail_url'].split('.')[-1]}"
+                thumbnail_path = f"thumbnails/{video['video_id']}.{video['thumbnail_url'].split('.')[-1].split('?')[0]}"
 
                 if os.path.exists(thumbnail_path): continue
                 with open(thumbnail_path, "wb") as thumb_file:
