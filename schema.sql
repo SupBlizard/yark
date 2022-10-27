@@ -14,10 +14,6 @@ CREATE TABLE IF NOT EXISTS channels (
     FOREIGN KEY(uploader_id) REFERENCES users(user_id) ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS categories (
-    name TEXT PRIMARY KEY NOT NULL UNIQUE
-);
-
 CREATE TABLE IF NOT EXISTS tags (
     name TEXT PRIMARY KEY NOT NULL UNIQUE
 );
@@ -68,7 +64,6 @@ CREATE TABLE IF NOT EXISTS videos (
     category TEXT,
     filesize INTEGER,
     archived INTEGER DEFAULT (strftime('%s','now')),
-    FOREIGN KEY(category) REFERENCES categories(name) ON DELETE RESTRICT,
     FOREIGN KEY(channel) REFERENCES channels(channel_id) ON DELETE RESTRICT
 );
 
@@ -95,22 +90,3 @@ CREATE TABLE IF NOT EXISTS playlist_videos (
     added INTEGER,
     FOREIGN KEY(playlist) REFERENCES playlists(playlist_id) ON DELETE CASCADE
 );
-
-
-
--- Insert youtube's categories
-INSERT OR IGNORE INTO categories VALUES ('Film & Animation');
-INSERT OR IGNORE INTO categories VALUES ('Autos & Vehicles');
-INSERT OR IGNORE INTO categories VALUES ('Music');
-INSERT OR IGNORE INTO categories VALUES ('Pets & Animals');
-INSERT OR IGNORE INTO categories VALUES ('Sports');
-INSERT OR IGNORE INTO categories VALUES ('Travel & Events');
-INSERT OR IGNORE INTO categories VALUES ('Gaming');
-INSERT OR IGNORE INTO categories VALUES ('People & Blogs');
-INSERT OR IGNORE INTO categories VALUES ('Comedy');
-INSERT OR IGNORE INTO categories VALUES ('Entertainment');
-INSERT OR IGNORE INTO categories VALUES ('News & Politics');
-INSERT OR IGNORE INTO categories VALUES ('Howto & Style');
-INSERT OR IGNORE INTO categories VALUES ('Education');
-INSERT OR IGNORE INTO categories VALUES ('Science & Technology');
-INSERT OR IGNORE INTO categories VALUES ('Nonprofits & Activism');
