@@ -131,6 +131,7 @@ class Archive:
         info["age_limit"] = info.get("age_limit")
         info["live_status"] = info.get("live_status")
         info["fps"] = info.get("fps")
+        info["width"] = info.get("width")
         info["audio_channels"] = info.get("audio_channels")
         info["filesize"] = info.pop("filesize_approx") if info.get("filesize_approx") else None
         info["upload_date"] = parse(info["upload_date"]).timestamp() if info.get("upload_date") else None
@@ -164,11 +165,12 @@ class Archive:
         # Prepare metadata for archival
         v = self.__refine_metadata(v)
 
-        # Attempt to insert user, channel and category (if youtube decides to add new ones)
-        cur.execute("INSERT OR IGNORE INTO categories VALUES(?)", (v.get("category"),))
-        cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (v.get("uploader_id"), v.get("uploader")))
+        # Insert user and channel
+        cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (
+            v.get("uploader_id"), (v.get("uploader") or v.get("channel") or v.get("uploader_id"))
+        ))
         cur.execute("INSERT OR IGNORE INTO channels VALUES(?,?,?,?,?)", (
-            v.get("channel_id"), v.get("uploader_id"), (v.get("channel") or v.get("uploader")),
+            v.get("channel_id"), v.get("uploader_id"), (v.get("channel") or v.get("uploader") or v.get("uploader_id")),
             v.get("channel_follower_count"), v.get("channel_url")
         ))
 
