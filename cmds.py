@@ -290,8 +290,8 @@ class Archive:
             }
 
         # Parse timestamps into a datetime object
-        if playlist.get("Time Updated"): parse(playlist["Time Updated"]).timestamp()
-        if playlist.get("Time Created"): parse(playlist["Time Created"]).timestamp()
+        if playlist.get("Time Updated"): playlist["Time Updated"] = parse(playlist["Time Updated"]).timestamp()
+        if playlist.get("Time Created"): playlist["Time Created"] = parse(playlist["Time Created"]).timestamp()
         id, cur = playlist["Playlist ID"], db.cursor()
 
         # Check if the playlist already exists in the database
