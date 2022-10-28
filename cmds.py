@@ -297,7 +297,9 @@ class Archive:
         # Check if the playlist already exists in the database
         if cur.execute("SELECT 1 FROM playlists WHERE playlist_id == ?", (id,)).fetchone():
             print(f"Playlist already exists, Overwrite it ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
-            utils.user_confirm()
+            if not utils.user_confirm():
+                print("Aborting ...")
+                return
 
         # Overwrite playlist if it already exists
         cur.execute("DELETE FROM playlists WHERE playlist_id == ?", (id,))
@@ -385,7 +387,10 @@ class Unarchive:
             title = title["title"]
             # Confirm user wants to delete the thing
             print(f"Delete {thing} <{title}> ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
-            utils.user_confirm()
+            if not utils.user_confirm():
+                print("Aborting ...")
+                return
+
             print()
 
             db.execute(f"DELETE FROM {thing}s WHERE {thing}_id == ?", (id,))
@@ -403,9 +408,10 @@ class Unarchive:
 
         if playlist_id[0] == "*":
             print(f"Delete all playlists ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
-            utils.user_confirm()
-            db.executescript(f"DELETE FROM playlists;")
-            db.commit()
+            if utils.user_confirm():
+                db.executescript(f"DELETE FROM playlists;")
+                db.commit()
+            else: print("Aborting ...")
         else: self.__unarchive("playlist", playlist_id[0])
 
 
