@@ -378,8 +378,7 @@ class Unarchive:
 
     def __unarchive(self, thing, id):
         # Validate video IDs
-        if thing == "video":
-            utils.is_video(id)
+        if thing == "video": utils.is_video(id)
 
         title = db.execute(f"SELECT title FROM {thing}s WHERE {thing}_id == ?", (id,)).fetchone()
         if title:
@@ -392,7 +391,7 @@ class Unarchive:
             db.execute(f"DELETE FROM {thing}s WHERE {thing}_id == ?", (id,))
             db.commit()
             print(utils.color(f"Successfully deleted {thing} <{id}>", "green", True))
-        else: logging.error(f"{thing.capitalize()} not found")
+        else: print(f"{thing.capitalize()} not found")
 
 
     def video(self, video_id):
@@ -401,6 +400,12 @@ class Unarchive:
 
     def playlist(self, playlist_id):
         if not playlist_id: raise ValueError("Missing playlist ID")
+
+        if playlist_id[0] == "*":
+            print(f"Delete all playlists ? {utils.color('(THIS CANNOT BE REVERTED)', 'red')}")
+            utils.user_confirm()
+            db.executescript(f"DELETE FROM playlists;")
+            db.commit()
         else: self.__unarchive("playlist", playlist_id[0])
 
 
