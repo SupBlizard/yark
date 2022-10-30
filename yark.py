@@ -1,7 +1,19 @@
-import sys, cmds
+import sys, cmds, logging
+from utils import color
+
+
+# Initialize logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="[%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("debug.log"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 def main():
-    print(cmds.utils.color(f"[ YARK ]\n", "red"))
+    print(color("[ YARK ]\n", "red"))
 
     while True:
         try:
@@ -29,13 +41,10 @@ def main():
             else: print()
 
         except Exception as e:
-            print(cmds.utils.color(e, "red"), end="\n\n")
+            print(color(e, "red"), end="\n\n")
         except KeyboardInterrupt:
             print()
             break
-
-    # Close database
-    cmds.db.close()
 
 
 if __name__ == "__main__":
