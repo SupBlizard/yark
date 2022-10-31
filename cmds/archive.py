@@ -23,8 +23,30 @@ except FileNotFoundError as e:
 
 # https://www.youtube.com/watch?v=qOgldkETcxk
 class Archive:
-    def __init__(self):
-        self.help = "TODO"
+    """Archive command:
+
+    This command is used to archive stuff into a database.
+
+    video: archive video [video id]
+      Archive the metadata of a single video.
+      This method requires a youtube video ID.
+
+    playlist: archive playlist [playlist id / filepath]
+      Archive every video in a playlist.
+      This method accepts youtube playlist IDs and
+      Google takout playlist CSVs.
+
+    history: archive history [filepath]
+      Archive every video from a watch history JSON file
+      (from Google takeout). This method requires a
+      filepath to said history file.
+
+    dump: archive dump thumbnails
+      A sub-command used to dump things to disk.
+      It is only used for dumping thumbnails and it's
+      very likely this will be removed from this command
+      at some point in the future.
+    """
 
     def default(self):
         raise Exception(f"Missing method")
@@ -321,8 +343,24 @@ class Archive:
 
 # https://www.youtube.com/watch?v=gbRe9zGFh6k
 class Unarchive:
-    def __init__(self):
-        self.help = "TODO"
+    """Unarchive command:
+
+    This command is used to DELETE things from the database.
+
+    video: unarchive video [video id]
+      Unarchive a single video from the database.
+      The video and all data associated with it,
+      (like comments and tags) will be deleted.
+      requires a video ID.
+
+    playlist: unarchive playlist [playlist id]
+      Unarchive a playlist from the database.
+      Executing this will remove the playlist from
+      database including all references to videos and
+      associated timestamps. However, the videos
+      themselves will not be deleted. Requires a
+      playlist ID.
+    """
 
     def default(self):
         raise Exception(f"Missing method")
