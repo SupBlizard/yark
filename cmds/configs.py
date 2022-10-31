@@ -34,6 +34,18 @@ with open("configs.json", "a+") as config_file:
 
 
 class Config:
+    """Config command:
+
+    Manage your configurations.
+    To show current configs just type 'config'.
+
+    get: configs get [thing] [true/false]
+      Whether or not to get something.
+      This method takes in the thing to
+      change and its state. This will
+      probably be changed in the future.
+    """
+    
     def default(self):
         for key in configs:
             key_value = color(configs[key], "green" if configs[key] else "red", True)
