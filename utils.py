@@ -5,7 +5,6 @@ from colorama import Style, Fore, Back
 RYD_API = "https://returnyoutubedislikeapi.com/"
 WAYBACK = "https://web.archive.org/web/"
 YOUTUBE = "https://www.youtube.com/"
-CONFIGS_DEFAULT = {"thumbnails": True, "comments": True}
 DEFAULT_DESC = "Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube."
 DELETE = "\033[K\033[A"*2
 

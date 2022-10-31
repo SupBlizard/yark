@@ -1,18 +1,12 @@
 import sys, os, json, csv, sqlite3, requests, time, yt_dlp, datetime, logging
 from dateutil.parser import *
 import urllib.parse
+
+
 import utils
+from .configs import options, configs
 
-# Initialize logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="[%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("debug.log"),
-        logging.StreamHandler(sys.stdout)
-    ])
-
-
+# Initialize database
 def dict_factory(cursor, row):
     columns = [col[0] for col in cursor.description]
     return {key: value for key, value in zip(columns, row)}
@@ -26,51 +20,6 @@ try:
 except FileNotFoundError as e:
     logging.critical("Database schema not found.")
     sys.exit()
-
-
-# Read configuration or write defaults
-with open("configs.json", "a+") as config_file:
-    try:
-        config_file.seek(0)
-        configs = json.loads(config_file.read())
-        if configs.keys() != utils.CONFIGS_DEFAULT.keys():
-            raise ValueError("Invalid keys")
-
-        for key in utils.CONFIGS_DEFAULT:
-            if not isinstance(configs[key], type(utils.CONFIGS_DEFAULT[key])):
-                raise ValueError(f"Invalid value datatype for {key}")
-    except (json.JSONDecodeError, ValueError) as e:
-        logging.error(f"{e}, resetting configs.")
-        configs = None
-
-    if not configs:
-        configs = utils.CONFIGS_DEFAULT
-        config_file.seek(0)
-        config_file.truncate()
-        config_file.write(json.dumps(utils.CONFIGS_DEFAULT))
-
-
-options = {
-    "quiet": True,
-    "logger": utils.YtLogger(),
-    "extract_flat":"in_playlist"
-}
-
-
-# Global run command
-def run(cmd_class, args):
-    if not args: return cmd_class.default()
-
-    cmd = args.pop(0).lower()
-    invalid_attr = f'Invalid sub-command: "{cmd}"'
-    cmd = getattr(cmd_class, cmd, AttributeError(invalid_attr))
-
-    if callable(cmd):
-        if cmd.__name__ != "default": return cmd(args)
-        raise AttributeError(invalid_attr)
-    elif type(cmd) == Exception: raise cmd
-    return cmd
-
 
 # https://www.youtube.com/watch?v=qOgldkETcxk
 class Archive:
@@ -413,33 +362,3 @@ class Unarchive:
                 db.commit()
             else: print("Aborting ...")
         else: self.__unarchive("playlist", playlist_id[0])
-
-
-
-class Config:
-    def __init__(self):
-        self.help = "TODO"
-
-    def default(self):
-        for key in configs:
-            key_value = utils.color(configs[key],"green" if configs[key] else "red", bright=True)
-            print(f"{key}: {key_value.lower()}")
-
-    def get(self, args):
-        if not args: raise ValueError("Get what ?")
-        if len(args) < 2: raise ValueError("True or False ?")
-
-        if args[0] not in configs:
-            raise ValueError(f"Configuration {args[0]} does not exist")
-
-        args[1] = args[1].lower()
-        if args[1] == "true":
-            configs[args[0]] = True
-        elif args[1] == "false":
-            configs[args[0]] = False
-        else: raise ValueError("True or false ?")
-
-        with open("configs.json", "w") as config_file:
-            config_file.write(json.dumps(configs))
-
-        print(f"Get {args[0]} set to <False>")
