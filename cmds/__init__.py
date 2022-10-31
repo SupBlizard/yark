@@ -1,3 +1,4 @@
+import sys, inspect
 from cmds.configs import Config
 from cmds.archive import Archive, Unarchive
 
@@ -15,3 +16,24 @@ def run(cmd_class, args):
         raise AttributeError(invalid_attr)
     elif type(cmd) == Exception: raise cmd
     return cmd
+
+
+class Help:
+    """Help command:
+
+    Type 'help' to print general information about yark.
+    """
+
+    def default(self):
+        return "test"
+
+    def me(self, cmd):
+        if not cmd: return self.default()
+        cmd = cmd[0].capitalize()
+        err = NameError(f"Command {cmd} does not exist.")
+
+        # Get command docs
+        cmd = getattr(sys.modules[__name__], cmd, err)
+        if inspect.isclass(cmd):
+            return cmd().__doc__
+        raise err
