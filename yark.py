@@ -17,34 +17,28 @@ def main():
 
     while True:
         try:
-            # Get user input
             args = input("> ").split()
-            if len(args) == 0:
-                continue
-            else: cmd = args.pop(0).capitalize()
+            if len(args) == 0: continue
+            cmd = args.pop(0).capitalize()
             if cmd == "Exit": break
-        except KeyboardInterrupt:
-            print()
-            break;
 
-        try:
-            # Check if command exists
             try:
+                # Check if command exists
                 cmd = getattr(cmds, cmd)
                 if type(cmd) != type: raise TypeError
             except (AttributeError, TypeError):
-                raise Exception(f"Command {cmd} does not exist.\n")
+                raise Exception(f"Command {cmd} does not exist.")
 
             # Run command and print return value
             if rtn := cmds.run(cmd(), args):
                 print(rtn)
-            else: print()
-
         except Exception as e:
-            print(color(e, "red"), end="\n\n")
+            print(color(e, "red"), end="\n")
         except KeyboardInterrupt:
             print()
             break
+
+        print()
 
 
 if __name__ == "__main__":
