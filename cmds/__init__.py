@@ -23,9 +23,10 @@ class Help:
 
     Type 'help' to print general information about yark.
     """
-
-    def default(self):
-        return "test"
+    def help(self, args): return self.__doc__
+    def default(self): return """Yark Project:
+    TODO: Write stuff about yark
+    """
 
     def me(self, cmd):
         if not cmd: return self.default()

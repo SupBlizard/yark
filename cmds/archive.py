@@ -47,9 +47,8 @@ class Archive:
       very likely this will be removed from this command
       at some point in the future.
     """
-
-    def default(self):
-        raise Exception(f"Missing method")
+    def help(self, args): return self.__doc__
+    def default(self): return self.__doc__
 
     def __get_video(self, id):
         utils.is_video(id)
@@ -361,9 +360,8 @@ class Unarchive:
       themselves will not be deleted. Requires a
       playlist ID.
     """
-
-    def default(self):
-        raise Exception(f"Missing method")
+    def help(self, args): return self.__doc__
+    def default(self): return self.__doc__
 
     def __unarchive(self, thing, id):
         # Validate video IDs

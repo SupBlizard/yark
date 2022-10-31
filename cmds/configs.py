@@ -45,6 +45,7 @@ class Config:
       change and its state. This will
       probably be changed in the future.
     """
+    def help(self, args): return self.__doc__
     
     def default(self):
         for key in configs:
