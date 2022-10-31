@@ -24,8 +24,19 @@ class Help:
     Type 'help' to print general information about yark.
     """
     def help(self, args): return self.__doc__
-    def default(self): return """Yark Project:
-    TODO: Write stuff about yark
+    def default(self): return """Yark:
+
+    The Yark project (Youtube Archive) is a program for the archival
+    of youtube videos, playlists and history, for private use.
+
+    Command structure: <command> [method] [arguments]
+    Eg.: archive video hAjhhGCC_BA
+
+    Commands (use <command> help to print additional help):
+      archive    - Archive something to the database
+      unarchive  - Unarchive something from the database
+      config     - Change your configurations
+      help       - Print information about any command
     """
 
     def me(self, cmd):
