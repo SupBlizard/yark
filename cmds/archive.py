@@ -46,6 +46,9 @@ class Archive:
       It is only used for dumping thumbnails and it's
       very likely this will be removed from this command
       at some point in the future.
+
+    lost: archive lost
+      re-attempt to archive all lost videos.
     """
     def help(self, args): return self.__doc__
     def default(self): return self.__doc__
