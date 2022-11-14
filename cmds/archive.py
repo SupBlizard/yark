@@ -193,6 +193,7 @@ class Archive:
             msg = "Video successfully recovered and archived"
         else: msg = "Video successfully archived"
         print(utils.color(msg, "green", True))
+        return True
 
 
     def dump(self, args):
@@ -337,6 +338,17 @@ class Archive:
         print(utils.color(f"Finished Archiving history, Time taken: {time_taken['time']} {time_taken['unit']}", "green", True))
         print(f"{unavailable} unavailable")
 
+
+    def lost(self, args):
+        lost_videos = db.execute("SELECT video_id FROM videos WHERE availability == 'lost'").fetchall()
+
+        time_started, recovered = utils.time.perf_counter(), 0
+        for i, video in enumerate(lost_videos):
+            utils.step_format(i+1, len(lost_videos), time_started)
+            if self.video([video.get("video_id")]): recovered += 1
+
+        time_taken = utils.format_time(utils.time.perf_counter()-time_started)
+        print(f"Finished in {time_taken}, {recovered} video(s) recovered")
 
 
 
