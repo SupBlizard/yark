@@ -118,16 +118,13 @@ class Archive:
         return info
 
 
-    def video(self, video_id):
+    def video(self, video_id, force=False):
         if not video_id: raise ValueError("Missing video ID")
         video_id, cur = video_id[0], db.cursor()
-        if exists := cur.execute("SELECT video_id, availability FROM videos WHERE video_id == ?",(video_id,)).fetchone():
-            if exists["availability"] != "lost":
-                print("Video already archived, skipping.")
-                return
-
-            # Re-attempt to archive if a video is lost
-            logging.info("Video previously archived but lost, attempting recovery")
+        if cur.execute("SELECT video_id FROM videos WHERE video_id == ?",
+            (video_id,)).fetchone() and not force:
+            print("Video already archived, skipping.")
+            return
 
         v = self.__get_video(video_id)
         if not v:
@@ -190,13 +187,10 @@ class Archive:
         db.commit()
 
         # Print video archival status
-        if exists and exists["availability"] == "lost":
-            msg = "Lost video somehow recovered!"
-        elif v.get("availability") == "recovered":
+        if v.get("availability") == "recovered":
             msg = "Video successfully recovered and archived"
         else: msg = "Video successfully archived"
         print(utils.color(msg, "green", True))
-        return True
 
 
     def dump(self, args):
@@ -344,14 +338,16 @@ class Archive:
 
     def lost(self, args):
         lost_videos = db.execute("SELECT video_id FROM videos WHERE availability == 'lost'").fetchall()
-
         time_started, recovered = utils.time.perf_counter(), 0
+
         for i, video in enumerate(lost_videos):
             utils.step_format(i+1, len(lost_videos), time_started)
-            if self.video([video.get("video_id")]): recovered += 1
+            self.video([video.get("video_id")], force=True)
+            if db.execute("SELECT availability FROM videos WHERE video_id == ?", (
+                video.get("video_id"),)).fetchone()["availability"] != "lost": recovered += 1
 
         time_taken = utils.format_time(utils.time.perf_counter()-time_started)
-        print(f"Finished in {time_taken}, {recovered} video(s) recovered")
+        print(utils.color(f"\nFinished in {time_taken['time']} {time_taken['unit']}, {recovered} video(s) recovered", "green", True))
 
 
 
