@@ -118,7 +118,7 @@ class Archive:
         return info
 
 
-    def video(self, video_id, force=False):
+    def video(self, video_id, force=True):
         if not video_id: raise ValueError("Missing video ID")
         video_id, cur = video_id[0], db.cursor()
         if cur.execute("SELECT video_id FROM videos WHERE video_id == ?",
@@ -134,6 +134,8 @@ class Archive:
 
         # Prepare metadata for archival
         v = self.__refine_metadata(v)
+        if v.get("availability") == "recovered":
+            msg = "Video successfully recovered and archived"
 
         # Insert user and channel
         cur.execute("INSERT OR IGNORE INTO users VALUES(?,?)", (
@@ -152,19 +154,22 @@ class Archive:
                 v["rating"], v["upload_date"], v["availability"], v["width"], v["height"], v["fps"],
                 v["audio_channels"], v["category"], v["filesize"], None
             ))
-        except sqlite3.IntegrityError as e:
-            logging.error(f"Integrity Error: {e}")
+        except sqlite3.IntegrityError:
             # Update video info
-            # TODO: PUT THIS GARBAGE IN THE UPDATE METHOD WHEN ITS DONE
-            cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
-                thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
-                dislikes = ?, rating = ?, upload_timestamp = ?, availability = ?, width = ?, height = ?,
-                fps = ?, audio_channels = ?, category = ?, filesize = ? WHERE video_id == ?""", (
-                v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
-                v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
-                v["rating"], v["upload_date"], v["availability"], v["width"], v["height"], v["fps"],
-                v["audio_channels"], v["category"], v["filesize"], v["id"]
-            ))
+            if v["fulltitle"] and v["channel_id"] and v["filesize"] and v["duration"]:
+                cur.execute("""UPDATE videos SET title = ?, description = ?, channel = ?, thumbnail = ?,
+                    thumbnail_url = ?, duration = ?, views = ?, age_limit = ?, live_status = ?, likes = ?,
+                    dislikes = ?, rating = ?, upload_timestamp = ?, availability = ?, width = ?, height = ?,
+                    fps = ?, audio_channels = ?, category = ?, filesize = ? WHERE video_id == ?""", (
+                    v["fulltitle"], v["description"], v["channel_id"], v["thumbnail"], v["thumbnail_url"],
+                    v["duration"], v["views"], v["age_limit"], v["live_status"], v["likes"], v["dislikes"],
+                    v["rating"], v["upload_date"], v["availability"], v["width"], v["height"], v["fps"],
+                    v["audio_channels"], v["category"], v["filesize"], v["id"]
+                ))
+                msg = "Video successfully updated"
+            else:
+                print(utils.color("Video found but cannot be updated.", "red", True))
+                return
 
         # Add comments
         for c in v.get("comments") or []:
@@ -187,9 +192,7 @@ class Archive:
         db.commit()
 
         # Print video archival status
-        if v.get("availability") == "recovered":
-            msg = "Video successfully recovered and archived"
-        else: msg = "Video successfully archived"
+        if not msg: msg = "Video successfully archived"
         print(utils.color(msg, "green", True))
 
 
@@ -287,7 +290,7 @@ class Archive:
             # remove spaces from video ID and parse timestamp
             video = [video[0].replace(" ", ""), video[1]]
             try:
-                self.video([video[0]])
+                self.video([video[0]], force=False)
                 cur.execute("INSERT INTO playlist_videos(playlist, video, added) VALUES(?,?,?)", (
                     playlist["Playlist ID"], video[0], video[1]))
             except sqlite3.IntegrityError as e:
@@ -319,7 +322,7 @@ class Archive:
             else: unavailable+=1
 
             try:
-                self.video([video.get("titleUrl")])
+                self.video([video.get("titleUrl")], force=False)
                 data_tuple = (video.get("titleUrl"), parse(video["time"]).timestamp())
                 if not cur.execute("SELECT 1 FROM history WHERE video==? AND watched==?", data_tuple).fetchone():
                     cur.execute("INSERT INTO history(video, watched) VALUES(?,?)", data_tuple)
