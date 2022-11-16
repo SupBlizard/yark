@@ -134,6 +134,7 @@ class Archive:
 
         # Prepare metadata for archival
         v = self.__refine_metadata(v)
+        msg = "Video successfully archived"
         if v.get("availability") == "recovered":
             msg = "Video successfully recovered and archived"
 
@@ -192,7 +193,6 @@ class Archive:
         db.commit()
 
         # Print video archival status
-        if not msg: msg = "Video successfully archived"
         print(utils.color(msg, "green", True))
 
 
