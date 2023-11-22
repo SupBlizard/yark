@@ -11,4 +11,4 @@ requests==2.31.0
 six==1.16.0
 urllib3==1.26.18
 websockets==10.3
-yt-dlp==2023.9.24
+yt-dlp==2023.11.14
