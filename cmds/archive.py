@@ -2,6 +2,8 @@ import sys, os, json, csv, sqlite3, requests, time, yt_dlp, datetime, logging
 from dateutil.parser import *
 import urllib.parse
 
+from pathlib import Path
+
 
 import utils
 from .configs import options, configs
@@ -228,11 +230,22 @@ class Archive:
             try:
                 # Get playlist from file
                 with open(args, "rt", newline="") as pl_file:
-                    playlist = list(csv.DictReader(pl_file, delimiter=','))[0]
-                    # Reset file stream position
-                    pl_file.seek(0)
+                    pl_title = Path(args).stem[:-7] # Remove " videos" postfix
 
-                    playlist["Videos"] = list(csv.reader(pl_file, delimiter=','))[4:-1]
+                    playlist = {
+                        "Playlist ID": f"PLLOCAL_{pl_title}",
+                        "Channel ID": None,
+                        "Time Created": None,
+                        "Time Updated": str(datetime.datetime.now()),
+                        "Title": pl_title,
+                        "Description": None,
+                        "Visibility": "Local",
+                        "Videos": []
+                    }
+
+                    for video in list(csv.DictReader(pl_file, delimiter=',')):
+                        playlist["Videos"].append(list(video.values()))
+
             except FileNotFoundError:
                 raise FileNotFoundError("Playlist file not found")
             except csv.Error as e:
