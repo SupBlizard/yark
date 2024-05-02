@@ -9,3 +9,4 @@ debug.log
 *.db
 *.db-journal
 .archive
+*.sqbpro

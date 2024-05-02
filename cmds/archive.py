@@ -233,7 +233,7 @@ class Archive:
                     pl_title = Path(args).stem[:-7] # Remove " videos" postfix
 
                     playlist = {
-                        "Playlist ID": f"PLLOCAL_{pl_title}",
+                        "Playlist ID": f"PLLOCAL_{pl_title.replace(" ", "_")}",
                         "Channel ID": None,
                         "Time Created": None,
                         "Time Updated": str(datetime.datetime.now()),
